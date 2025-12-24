@@ -84,7 +84,7 @@ export default function CompanySettingsPage() {
     <PageWrapper>
       <Header />
 
-      <PageContainer variant="default">
+      <PageContainer variant="wide">
         <h1 className="text-2xl font-bold text-gray-900 mb-8">Company Settings</h1>
 
         {error && (

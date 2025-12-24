@@ -180,7 +180,7 @@ export default function CompanyShortlistDetailPage() {
     <PageWrapper>
       <Header />
 
-      <PageContainer variant="default">
+      <PageContainer variant="wide">
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
