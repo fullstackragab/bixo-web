@@ -1,0 +1,341 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import api from '@/lib/api';
+import { ShortlistStatus, SeniorityLevel, Availability } from '@/types';
+
+interface ShortlistCandidate {
+  id: string;
+  candidateId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  desiredRole: string | null;
+  seniorityEstimate: SeniorityLevel | null;
+  availability: Availability;
+  matchScore: number;
+  matchReason: string | null;
+  rank: number;
+  adminApproved: boolean;
+  skills: string[];
+}
+
+interface ShortlistDetail {
+  id: string;
+  companyId: string;
+  companyName: string;
+  roleTitle: string;
+  techStackRequired: string[];
+  seniorityRequired: SeniorityLevel | null;
+  locationPreference: string | null;
+  remoteAllowed: boolean;
+  additionalNotes: string | null;
+  status: ShortlistStatus;
+  pricePaid: number | null;
+  createdAt: string;
+  completedAt: string | null;
+  candidates: ShortlistCandidate[];
+}
+
+export default function ShortlistDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const shortlistId = params.id as string;
+
+  const [shortlist, setShortlist] = useState<ShortlistDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    loadShortlist();
+  }, [shortlistId]);
+
+  const loadShortlist = async () => {
+    setIsLoading(true);
+    const res = await api.get<ShortlistDetail>(`/admin/shortlists/${shortlistId}`);
+    if (res.success && res.data) {
+      setShortlist(res.data);
+    }
+    setIsLoading(false);
+  };
+
+  const toggleCandidateApproval = (candidateId: string) => {
+    if (!shortlist) return;
+    setShortlist({
+      ...shortlist,
+      candidates: shortlist.candidates.map(c =>
+        c.candidateId === candidateId ? { ...c, adminApproved: !c.adminApproved } : c
+      )
+    });
+  };
+
+  const updateRank = (candidateId: string, newRank: number) => {
+    if (!shortlist) return;
+    setShortlist({
+      ...shortlist,
+      candidates: shortlist.candidates.map(c =>
+        c.candidateId === candidateId ? { ...c, rank: newRank } : c
+      )
+    });
+  };
+
+  const saveChanges = async () => {
+    if (!shortlist) return;
+    setIsSaving(true);
+
+    const rankings = shortlist.candidates.map(c => ({
+      candidateId: c.candidateId,
+      rank: c.rank,
+      adminApproved: c.adminApproved
+    }));
+
+    const res = await api.put(`/admin/shortlists/${shortlistId}/rankings`, { rankings });
+    if (res.success) {
+      alert('Changes saved successfully');
+    }
+    setIsSaving(false);
+  };
+
+  const updateStatus = async (status: ShortlistStatus) => {
+    const res = await api.put(`/admin/shortlists/${shortlistId}/status`, { status });
+    if (res.success) {
+      setShortlist(prev => prev ? { ...prev, status } : null);
+    }
+  };
+
+  const deliverShortlist = async () => {
+    if (!confirm('Are you sure you want to deliver this shortlist to the company? This action cannot be undone.')) {
+      return;
+    }
+
+    const res = await api.post(`/admin/shortlists/${shortlistId}/deliver`);
+    if (res.success) {
+      setShortlist(prev => prev ? { ...prev, status: ShortlistStatus.Completed } : null);
+      alert('Shortlist delivered successfully!');
+    }
+  };
+
+  const getStatusBadge = (status: ShortlistStatus) => {
+    switch (status) {
+      case ShortlistStatus.Pending:
+        return <Badge variant="warning">Pending</Badge>;
+      case ShortlistStatus.Processing:
+        return <Badge variant="primary">Processing</Badge>;
+      case ShortlistStatus.Completed:
+        return <Badge variant="success">Completed</Badge>;
+      case ShortlistStatus.Cancelled:
+        return <Badge variant="danger">Cancelled</Badge>;
+    }
+  };
+
+  const getSeniorityLabel = (seniority: SeniorityLevel | null) => {
+    if (seniority === null) return 'Any';
+    const labels = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal'];
+    return labels[seniority] || 'Any';
+  };
+
+  const getAvailabilityBadge = (availability: Availability) => {
+    switch (availability) {
+      case Availability.Open:
+        return <Badge variant="success">Open</Badge>;
+      case Availability.Passive:
+        return <Badge variant="warning">Passive</Badge>;
+      case Availability.NotNow:
+        return <Badge variant="default">Not Looking</Badge>;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!shortlist) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Shortlist not found</p>
+        <Link href="/admin/shortlists">
+          <Button className="mt-4">Back to Shortlists</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <Link href="/admin/shortlists" className="text-gray-500 hover:text-gray-700">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-900">{shortlist.roleTitle}</h1>
+            {getStatusBadge(shortlist.status)}
+          </div>
+          <p className="text-gray-500">
+            Requested by <span className="font-medium text-gray-700">{shortlist.companyName}</span> on{' '}
+            {new Date(shortlist.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {shortlist.status === ShortlistStatus.Pending && (
+            <Button onClick={() => updateStatus(ShortlistStatus.Processing)}>
+              Start Processing
+            </Button>
+          )}
+          {shortlist.status === ShortlistStatus.Processing && (
+            <>
+              <Button variant="outline" onClick={saveChanges} isLoading={isSaving}>
+                Save Changes
+              </Button>
+              <Button onClick={deliverShortlist}>
+                Deliver to Company
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Request Details */}
+      <Card className="mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Request Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div>
+            <p className="text-sm text-gray-500">Required Tech Stack</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {shortlist.techStackRequired?.map((tech, i) => (
+                <Badge key={i} variant="primary">{tech}</Badge>
+              )) || <span className="text-gray-600">Not specified</span>}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Seniority Level</p>
+            <p className="font-medium text-gray-900">{getSeniorityLabel(shortlist.seniorityRequired)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Location</p>
+            <p className="font-medium text-gray-900">
+              {shortlist.locationPreference || 'Any'}
+              {shortlist.remoteAllowed && <span className="text-green-600 ml-2">(Remote OK)</span>}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Price Paid</p>
+            <p className="font-medium text-gray-900">
+              {shortlist.pricePaid ? `$${shortlist.pricePaid}` : 'Not paid'}
+            </p>
+          </div>
+        </div>
+        {shortlist.additionalNotes && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-500">Additional Notes</p>
+            <p className="text-gray-700 mt-1">{shortlist.additionalNotes}</p>
+          </div>
+        )}
+      </Card>
+
+      {/* Matched Candidates */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Matched Candidates ({shortlist.candidates.length})
+          </h2>
+          <p className="text-sm text-gray-500">
+            {shortlist.candidates.filter(c => c.adminApproved).length} approved
+          </p>
+        </div>
+
+        {shortlist.candidates.length > 0 ? (
+          <div className="space-y-4">
+            {shortlist.candidates
+              .sort((a, b) => a.rank - b.rank)
+              .map((candidate) => (
+                <div
+                  key={candidate.candidateId}
+                  className={`p-4 rounded-lg border ${
+                    candidate.adminApproved ? 'border-green-200 bg-green-50' : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-bold text-gray-400">#{candidate.rank}</span>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {candidate.firstName && candidate.lastName
+                              ? `${candidate.firstName} ${candidate.lastName}`
+                              : candidate.email}
+                          </p>
+                          <p className="text-sm text-gray-500">{candidate.email}</p>
+                        </div>
+                        {getAvailabilityBadge(candidate.availability)}
+                        <Badge variant="primary">{getSeniorityLabel(candidate.seniorityEstimate)}</Badge>
+                        <div className="ml-2 px-2 py-1 bg-blue-100 rounded text-sm font-medium text-blue-700">
+                          {candidate.matchScore}% match
+                        </div>
+                      </div>
+                      {candidate.desiredRole && (
+                        <p className="text-sm text-gray-600 mt-2">Looking for: {candidate.desiredRole}</p>
+                      )}
+                      {candidate.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {candidate.skills.slice(0, 8).map((skill, i) => (
+                            <Badge key={i} variant="default">{skill}</Badge>
+                          ))}
+                          {candidate.skills.length > 8 && (
+                            <Badge variant="default">+{candidate.skills.length - 8} more</Badge>
+                          )}
+                        </div>
+                      )}
+                      {candidate.matchReason && (
+                        <p className="text-sm text-gray-500 mt-2 italic">{candidate.matchReason}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-500">Rank:</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={candidate.rank}
+                          onChange={(e) => updateRank(candidate.candidateId, parseInt(e.target.value) || 1)}
+                          className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                          disabled={shortlist.status !== ShortlistStatus.Processing}
+                        />
+                      </div>
+                      <Button
+                        variant={candidate.adminApproved ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => toggleCandidateApproval(candidate.candidateId)}
+                        disabled={shortlist.status !== ShortlistStatus.Processing}
+                      >
+                        {candidate.adminApproved ? 'Approved' : 'Approve'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No candidates matched yet</p>
+            <Button className="mt-4" onClick={() => api.post(`/admin/shortlists/${shortlistId}/match`)}>
+              Run Matching Algorithm
+            </Button>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}

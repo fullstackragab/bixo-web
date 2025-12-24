@@ -1,0 +1,361 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import Header from '@/components/layout/Header';
+import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import api from '@/lib/api';
+import { CandidateProfile, RemotePreference, Availability } from '@/types';
+
+export default function CandidateProfilePage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [profile, setProfile] = useState<CandidateProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Form state
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [linkedInUrl, setLinkedInUrl] = useState('');
+  const [desiredRole, setDesiredRole] = useState('');
+  const [locationPreference, setLocationPreference] = useState('');
+  const [remotePreference, setRemotePreference] = useState<RemotePreference>(RemotePreference.Flexible);
+  const [availability, setAvailability] = useState<Availability>(Availability.Open);
+  const [profileVisible, setProfileVisible] = useState(true);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      loadProfile();
+    }
+  }, [authLoading, user]);
+
+  const loadProfile = async () => {
+    setIsLoading(true);
+    const res = await api.get<CandidateProfile>('/candidates/profile');
+    if (res.success && res.data) {
+      setProfile(res.data);
+      setFirstName(res.data.firstName || '');
+      setLastName(res.data.lastName || '');
+      setLinkedInUrl(res.data.linkedInUrl || '');
+      setDesiredRole(res.data.desiredRole || '');
+      setLocationPreference(res.data.locationPreference || '');
+      setRemotePreference(res.data.remotePreference ?? RemotePreference.Flexible);
+      setAvailability(res.data.availability);
+      setProfileVisible(res.data.profileVisible);
+    }
+    setIsLoading(false);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError('');
+    setSuccess('');
+
+    const res = await api.put('/candidates/profile', {
+      firstName: firstName || null,
+      lastName: lastName || null,
+      linkedInUrl: linkedInUrl || null,
+      desiredRole: desiredRole || null,
+      locationPreference: locationPreference || null,
+      remotePreference,
+      availability,
+      profileVisible
+    });
+
+    if (res.success) {
+      setSuccess('Profile updated successfully');
+      loadProfile();
+    } else {
+      setError(res.error || 'Failed to update profile');
+    }
+    setIsSaving(false);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a PDF or Word document');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB');
+      return;
+    }
+
+    setIsUploading(true);
+    setError('');
+
+    try {
+      // Get presigned upload URL
+      const uploadRes = await api.get<{ uploadUrl: string; fileKey: string }>(
+        `/candidates/cv/upload-url?fileName=${encodeURIComponent(file.name)}`
+      );
+
+      if (!uploadRes.success || !uploadRes.data) {
+        throw new Error(uploadRes.error || 'Failed to get upload URL');
+      }
+
+      // Upload file directly to S3
+      const uploadResponse = await fetch(uploadRes.data.uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      // Notify backend to process the CV
+      const processRes = await api.post('/candidates/cv/process', {
+        fileKey: uploadRes.data.fileKey,
+        originalFileName: file.name
+      });
+
+      if (!processRes.success) {
+        throw new Error(processRes.error || 'Failed to process CV');
+      }
+
+      setSuccess('CV uploaded successfully! Skills will be extracted shortly.');
+      loadProfile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload CV');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-8">Edit Profile</h1>
+
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+            {success}
+          </div>
+        )}
+
+        {/* CV Upload */}
+        <Card className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Resume / CV</h2>
+
+          {profile?.cvFileName ? (
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div>
+                  <p className="font-medium text-gray-900">{profile.cvFileName}</p>
+                  <p className="text-sm text-gray-500">Click to replace</p>
+                </div>
+              </div>
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()} isLoading={isUploading}>
+                Replace
+              </Button>
+            </div>
+          ) : (
+            <div
+              className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-gray-400 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p className="mt-2 font-medium text-gray-900">Upload your CV</p>
+              <p className="text-sm text-gray-500">PDF or Word, max 10MB</p>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+        </Card>
+
+        {/* Skills */}
+        {profile?.skills && profile.skills.length > 0 && (
+          <Card className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Skills</h2>
+            <div className="flex flex-wrap gap-2">
+              {profile.skills.map((skill) => (
+                <Badge key={skill.id} variant={skill.isVerified ? 'success' : 'primary'}>
+                  {skill.skillName}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-sm text-gray-500 mt-3">Skills are automatically extracted from your CV</p>
+          </Card>
+        )}
+
+        {/* Basic Info */}
+        <Card className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="First Name"
+              id="firstName"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="John"
+            />
+            <Input
+              label="Last Name"
+              id="lastName"
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Doe"
+            />
+          </div>
+
+          <div className="mt-4">
+            <Input
+              label="LinkedIn Profile"
+              id="linkedIn"
+              type="url"
+              value={linkedInUrl}
+              onChange={(e) => setLinkedInUrl(e.target.value)}
+              placeholder="https://linkedin.com/in/yourprofile"
+            />
+          </div>
+        </Card>
+
+        {/* Preferences */}
+        <Card className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Job Preferences</h2>
+
+          <div className="space-y-4">
+            <Input
+              label="Desired Role"
+              id="desiredRole"
+              type="text"
+              value={desiredRole}
+              onChange={(e) => setDesiredRole(e.target.value)}
+              placeholder="e.g. Senior Frontend Engineer"
+            />
+
+            <Input
+              label="Location Preference"
+              id="location"
+              type="text"
+              value={locationPreference}
+              onChange={(e) => setLocationPreference(e.target.value)}
+              placeholder="e.g. San Francisco, Remote"
+            />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Remote Preference</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {[
+                  { value: RemotePreference.Remote, label: 'Remote only' },
+                  { value: RemotePreference.Hybrid, label: 'Hybrid' },
+                  { value: RemotePreference.Onsite, label: 'On-site' },
+                  { value: RemotePreference.Flexible, label: 'Flexible' }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setRemotePreference(option.value)}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      remotePreference === option.value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Availability</label>
+              <div className="space-y-2">
+                {[
+                  { value: Availability.Open, label: 'Actively looking', desc: 'Ready to start interviews' },
+                  { value: Availability.Passive, label: 'Open to opportunities', desc: 'Not actively searching' },
+                  { value: Availability.NotNow, label: 'Not looking', desc: 'Just maintaining my profile' }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setAvailability(option.value)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
+                      availability === option.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <p className="font-medium text-gray-900">{option.label}</p>
+                    <p className="text-sm text-gray-500">{option.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Visibility */}
+        <Card className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Profile Visibility</h2>
+              <p className="text-sm text-gray-500">When visible, companies can find and contact you</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setProfileVisible(!profileVisible)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                profileVisible ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  profileVisible ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </Card>
+
+        <Button className="w-full" onClick={handleSave} isLoading={isSaving}>
+          Save Changes
+        </Button>
+      </main>
+    </div>
+  );
+}
