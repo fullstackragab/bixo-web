@@ -10,7 +10,7 @@ export default function HomePage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
         <div className="text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
             We help companies talk to the
@@ -19,25 +19,25 @@ export default function HomePage() {
           <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
             Skip the resume pile. Connect with pre-vetted tech talent through AI-powered matching and curated shortlists.
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
             <Link href="/register">
-              <Button size="lg">Get Started Free</Button>
+              <Button size="lg" className="w-full sm:w-auto">Get Started Free</Button>
             </Link>
             <Link href="/login">
-              <Button variant="outline" size="lg">Sign In</Button>
+              <Button variant="outline" size="lg" className="w-full sm:w-auto">Sign In</Button>
             </Link>
           </div>
         </div>
       </section>
 
       {/* How it Works */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">How Bixo Works</h2>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-8 sm:mb-12">How Bixo Works</h2>
 
-        <div className="grid md:grid-cols-2 gap-12">
+        <div className="grid md:grid-cols-2 gap-6 sm:gap-12">
           {/* For Candidates */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">For Candidates</h3>
+          <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">For Candidates</h3>
             <div className="space-y-6">
               <div className="flex items-start">
                 <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">1</div>
@@ -65,8 +65,8 @@ export default function HomePage() {
           </div>
 
           {/* For Companies */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">For Companies</h3>
+          <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">For Companies</h3>
             <div className="space-y-6">
               <div className="flex items-start">
                 <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">1</div>
@@ -96,12 +96,12 @@ export default function HomePage() {
       </section>
 
       {/* Pricing */}
-      <section className="bg-gray-50 py-20">
+      <section className="bg-gray-50 py-12 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-center text-gray-600 mb-12">Choose the plan that fits your hiring needs</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-4">Simple, Transparent Pricing</h2>
+          <p className="text-center text-gray-600 mb-8 sm:mb-12">Choose the plan that fits your hiring needs</p>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 max-w-5xl mx-auto">
             {/* Free */}
             <div className="bg-white rounded-2xl p-8 border border-gray-200">
               <h3 className="text-xl font-bold text-gray-900">Free</h3>
@@ -155,8 +155,8 @@ export default function HomePage() {
           </div>
 
           {/* Shortlist Pricing */}
-          <div className="mt-16 text-center">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Shortlist-as-a-Service</h3>
+          <div className="mt-12 sm:mt-16 text-center">
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Shortlist-as-a-Service</h3>
             <p className="text-gray-600 mb-8">Get curated candidate shortlists for specific roles</p>
             <div className="inline-flex gap-4 flex-wrap justify-center">
               <div className="bg-white px-6 py-4 rounded-xl border border-gray-200">
@@ -179,9 +179,9 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to find your next hire?</h2>
-        <p className="text-xl text-gray-600 mb-8">Join thousands of companies finding top tech talent on Bixo</p>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20 text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Ready to find your next hire?</h2>
+        <p className="text-lg sm:text-xl text-gray-600 mb-8">Join thousands of companies finding top tech talent on Bixo</p>
         <Link href="/register">
           <Button size="lg">Get Started Free</Button>
         </Link>

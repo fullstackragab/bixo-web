@@ -159,20 +159,20 @@ function AdminShortlistsContent() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Shortlist Requests
           </h1>
-          <p className="text-gray-500 mt-1">{totalCount} total requests</p>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">{totalCount} total requests</p>
         </div>
       </div>
 
       {/* Filters */}
-      <Card className="mb-6">
-        <div className="flex flex-wrap gap-4 items-center">
+      <Card className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
           <label className="text-sm font-medium text-gray-700">Status:</label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {["all", "pending", "processing", "completed", "cancelled"].map(
               (status) => (
                 <button
@@ -203,7 +203,88 @@ function AdminShortlistsContent() {
           </div>
         ) : shortlists.length > 0 ? (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="lg:hidden space-y-4">
+              {shortlists.map((shortlist) => (
+                <div key={shortlist.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900">{shortlist.companyName}</p>
+                      <p className="text-sm text-gray-600">{shortlist.roleTitle}</p>
+                    </div>
+                    {getStatusBadge(shortlist.status)}
+                  </div>
+
+                  {/* Tech Stack */}
+                  {shortlist.techStackRequired && shortlist.techStackRequired.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {shortlist.techStackRequired.slice(0, 3).map((tech, i) => (
+                        <Badge key={i} variant="default">{tech}</Badge>
+                      ))}
+                      {shortlist.techStackRequired.length > 3 && (
+                        <Badge variant="default">+{shortlist.techStackRequired.length - 3}</Badge>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                    <div>
+                      <span className="text-gray-500">Seniority:</span>
+                      <span className="ml-1 text-gray-900">{getSeniorityLabel(shortlist.seniorityRequired)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Candidates:</span>
+                      <span className="ml-1 text-gray-900">{shortlist.candidatesCount}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Location:</span>
+                      <span className="ml-1 text-gray-900">
+                        {(() => {
+                          const loc = getHiringLocationDisplay(shortlist);
+                          return loc.text;
+                        })()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Paid:</span>
+                      <span className="ml-1 text-gray-900">{shortlist.pricePaid ? `$${shortlist.pricePaid}` : "-"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                    <span className="text-xs text-gray-500">
+                      {new Date(shortlist.createdAt).toLocaleDateString()}
+                    </span>
+                    <div className="flex gap-2">
+                      <Link href={`/admin/shortlists/${shortlist.id}`}>
+                        <Button variant="ghost" size="sm">Review</Button>
+                      </Link>
+                      {shortlist.status.toLowerCase() === "pending" && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => updateStatus(shortlist.id, "processing")}
+                        >
+                          Start
+                        </Button>
+                      )}
+                      {shortlist.status.toLowerCase() === "processing" && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => updateStatus(shortlist.id, "completed")}
+                        >
+                          Complete
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
@@ -249,7 +330,7 @@ function AdminShortlistsContent() {
                         {shortlist.roleTitle}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        <div className="flex flex-wrap gap-1 max-w-50">
                           {shortlist.techStackRequired
                             ?.slice(0, 3)
                             .map((tech, i) => (
@@ -333,12 +414,12 @@ function AdminShortlistsContent() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-gray-200 pt-4 mt-4">
-                <p className="text-sm text-gray-500">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200 pt-4 mt-4">
+                <p className="text-sm text-gray-500 order-2 sm:order-1">
                   Showing {(page - 1) * pageSize + 1} to{" "}
                   {Math.min(page * pageSize, totalCount)} of {totalCount}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-2 order-1 sm:order-2">
                   <Button
                     variant="outline"
                     size="sm"

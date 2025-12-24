@@ -87,10 +87,10 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8">Admin Dashboard</h1>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <Card>
           <div className="flex items-center">
             <div className="flex-shrink-0 p-3 bg-blue-100 rounded-lg">
@@ -153,7 +153,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <Link href="/admin/shortlists?status=pending">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
@@ -197,44 +197,70 @@ export default function AdminDashboardPage() {
 
       {/* Recent Shortlists */}
       <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Shortlist Requests</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Recent Shortlist Requests</h2>
           <Link href="/admin/shortlists">
             <Button variant="outline" size="sm">View All</Button>
           </Link>
         </div>
 
         {dashboard?.recentShortlists && dashboard.recentShortlists.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {dashboard.recentShortlists.map((shortlist) => (
-                  <tr key={shortlist.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{shortlist.companyName}</td>
-                    <td className="px-4 py-3 text-gray-600">{shortlist.roleTitle}</td>
-                    <td className="px-4 py-3">{getStatusBadge(shortlist.status)}</td>
-                    <td className="px-4 py-3 text-gray-500 text-sm">
+          <>
+            {/* Mobile card view */}
+            <div className="sm:hidden space-y-3">
+              {dashboard.recentShortlists.map((shortlist) => (
+                <div key={shortlist.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-medium text-gray-900">{shortlist.companyName}</p>
+                      <p className="text-sm text-gray-600">{shortlist.roleTitle}</p>
+                    </div>
+                    {getStatusBadge(shortlist.status)}
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <span className="text-xs text-gray-500">
                       {new Date(shortlist.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link href={`/admin/shortlists/${shortlist.id}`}>
-                        <Button variant="ghost" size="sm">Review</Button>
-                      </Link>
-                    </td>
+                    </span>
+                    <Link href={`/admin/shortlists/${shortlist.id}`}>
+                      <Button variant="ghost" size="sm">Review</Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {dashboard.recentShortlists.map((shortlist) => (
+                    <tr key={shortlist.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{shortlist.companyName}</td>
+                      <td className="px-4 py-3 text-gray-600">{shortlist.roleTitle}</td>
+                      <td className="px-4 py-3">{getStatusBadge(shortlist.status)}</td>
+                      <td className="px-4 py-3 text-gray-500 text-sm">
+                        {new Date(shortlist.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Link href={`/admin/shortlists/${shortlist.id}`}>
+                          <Button variant="ghost" size="sm">Review</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-gray-500 text-center py-8">No shortlist requests yet</p>
         )}

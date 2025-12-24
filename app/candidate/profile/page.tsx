@@ -162,8 +162,8 @@ export default function CandidateProfilePage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">Edit Profile</h1>
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-8">Edit Profile</h1>
 
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
@@ -178,8 +178,8 @@ export default function CandidateProfilePage() {
         )}
 
         {/* CV Upload */}
-        <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Resume / CV</h2>
+        <Card className="mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Resume / CV</h2>
 
           {isUploading ? (
             <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 text-center bg-blue-50">
@@ -190,7 +190,7 @@ export default function CandidateProfilePage() {
               </div>
             </div>
           ) : profile?.cvFileName ? (
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -228,8 +228,8 @@ export default function CandidateProfilePage() {
 
         {/* Skills */}
         {profile?.skills && profile.skills.length > 0 && (
-          <Card className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Skills</h2>
+          <Card className="mb-4 sm:mb-6">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Skills</h2>
             <div className="flex flex-wrap gap-2">
               {profile.skills.map((skill) => (
                 <Badge key={skill.id} variant={skill.isVerified ? 'success' : 'primary'}>
@@ -242,8 +242,8 @@ export default function CandidateProfilePage() {
         )}
 
         {/* Basic Info */}
-        <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+        <Card className="mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
@@ -277,8 +277,8 @@ export default function CandidateProfilePage() {
         </Card>
 
         {/* Preferences */}
-        <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Job Preferences</h2>
+        <Card className="mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Job Preferences</h2>
 
           <div className="space-y-4">
             <Input
@@ -350,10 +350,10 @@ export default function CandidateProfilePage() {
         </Card>
 
         {/* Visibility */}
-        <Card className="mb-6">
-          <div className="flex items-center justify-between">
+        <Card className="mb-4 sm:mb-6">
+          <div className="flex items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Profile Visibility</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Profile Visibility</h2>
               <p className="text-sm text-gray-500">When visible, companies can find and contact you</p>
             </div>
             <button

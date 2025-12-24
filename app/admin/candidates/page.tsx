@@ -104,17 +104,17 @@ export default function AdminCandidatesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Candidates</h1>
-          <p className="text-gray-500 mt-1">{totalCount} total candidates</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Candidates</h1>
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">{totalCount} total candidates</p>
         </div>
       </div>
 
       {/* Filters */}
-      <Card className="mb-6">
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[200px]">
+      <Card className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+          <div className="flex-1 min-w-0 sm:min-w-[200px]">
             <Input
               label="Search"
               id="search"
@@ -125,7 +125,7 @@ export default function AdminCandidatesPage() {
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
           </div>
-          <div>
+          <div className="w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
             <select
               value={filterVisibility}
@@ -137,7 +137,7 @@ export default function AdminCandidatesPage() {
               <option value="hidden">Hidden</option>
             </select>
           </div>
-          <Button onClick={handleSearch}>Search</Button>
+          <Button onClick={handleSearch} className="w-full sm:w-auto">Search</Button>
         </div>
       </Card>
 
@@ -149,7 +149,59 @@ export default function AdminCandidatesPage() {
           </div>
         ) : candidates.length > 0 ? (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-4">
+              {candidates.map((candidate) => (
+                <div key={candidate.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900">
+                        {candidate.firstName && candidate.lastName
+                          ? `${candidate.firstName} ${candidate.lastName}`
+                          : 'No name'}
+                      </p>
+                      <p className="text-sm text-gray-600 truncate">{candidate.email}</p>
+                      {candidate.desiredRole && (
+                        <p className="text-sm text-gray-500 truncate">{candidate.desiredRole}</p>
+                      )}
+                    </div>
+                    {getAvailabilityBadge(candidate.availability)}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                    <div>
+                      <span className="text-gray-500">Seniority:</span>
+                      <span className="ml-1 text-gray-900">{getSeniorityLabel(candidate.seniorityEstimate)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Skills:</span>
+                      <span className="ml-1 text-gray-900">{candidate.skillsCount}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Views:</span>
+                      <span className="ml-1 text-gray-900">{candidate.profileViewsCount}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Visible:</span>
+                      <Badge variant={candidate.profileVisible ? 'success' : 'default'} className="ml-1">
+                        {candidate.profileVisible ? 'Yes' : 'No'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleVisibility(candidate.id, !candidate.profileVisible)}
+                    >
+                      {candidate.profileVisible ? 'Hide' : 'Show'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
@@ -175,7 +227,7 @@ export default function AdminCandidatesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{candidate.email}</td>
-                      <td className="px-4 py-3 text-gray-600 text-sm max-w-[200px] truncate">
+                      <td className="px-4 py-3 text-gray-600 text-sm max-w-50 truncate">
                         {candidate.desiredRole || '-'}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
@@ -210,11 +262,11 @@ export default function AdminCandidatesPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-gray-200 pt-4 mt-4">
-                <p className="text-sm text-gray-500">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200 pt-4 mt-4">
+                <p className="text-sm text-gray-500 order-2 sm:order-1">
                   Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-2 order-1 sm:order-2">
                   <Button
                     variant="outline"
                     size="sm"

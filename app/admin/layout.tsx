@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserType } from '@/types';
@@ -20,12 +20,19 @@ function isAdmin(userType: unknown): boolean {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && (!user || !isAdmin(user.userType))) {
       router.push('/login');
     }
   }, [user, isLoading, router]);
+
+  // Close sidebar when route changes (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   if (isLoading) {
     return (
@@ -49,15 +56,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Top Header */}
-      <header className="bg-gray-900 text-white">
+      <header className="bg-gray-900 text-white sticky top-0 z-30">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            {/* Mobile menu button */}
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:hidden p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-white"
+              aria-label="Toggle sidebar"
+            >
+              {sidebarOpen ? (
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
             <Link href="/admin/dashboard" className="text-xl font-bold">
               Bixo Admin
             </Link>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-300">{user.email}</span>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="text-sm text-gray-300 hidden sm:inline">{user.email}</span>
             <Link
               href="/"
               className="text-sm text-gray-300 hover:text-white"
@@ -68,27 +92,50 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex relative">
+        {/* Mobile sidebar overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className="w-64 bg-gray-800 min-h-[calc(100vh-52px)]">
+        <aside
+          className={`
+            fixed lg:static inset-y-0 left-0 z-20 w-64 bg-gray-800
+            transform transition-transform duration-300 ease-in-out
+            lg:transform-none lg:transition-none
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            top-[52px] lg:top-0 min-h-[calc(100vh-52px)]
+          `}
+        >
           <nav className="p-4 space-y-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-3 px-4 py-2.5 text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
-                </svg>
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-gray-700 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                  </svg>
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full lg:w-auto">
           {children}
         </main>
       </div>
