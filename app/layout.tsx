@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, DynaPuff } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
@@ -13,8 +13,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const dynaPuff = DynaPuff({
+  variable: "--font-dynapuff",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "Pixo - We help companies talk to the right people faster",
+  title: "Bixo - We help companies talk to the right people faster",
   description: "Job platform connecting tech talent with innovative companies through AI-powered matching and curated shortlists.",
 };
 
@@ -26,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
+        className={`${geistSans.variable} ${geistMono.variable} ${dynaPuff.variable} antialiased bg-gray-50`}
       >
         <AuthProvider>{children}</AuthProvider>
       </body>

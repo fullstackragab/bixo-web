@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { ShortlistStatus } from '@/types';
 
 interface AdminDashboard {
   totalCandidates: number;
@@ -20,7 +19,7 @@ interface AdminDashboard {
     id: string;
     companyName: string;
     roleTitle: string;
-    status: ShortlistStatus;
+    status: string;
     createdAt: string;
   }>;
 }
@@ -28,30 +27,41 @@ interface AdminDashboard {
 export default function AdminDashboardPage() {
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadDashboard = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await api.get<AdminDashboard>('/admin/dashboard');
+      if (res.success && res.data) {
+        setDashboard(res.data);
+      } else {
+        setError(res.error || 'Failed to load dashboard');
+      }
+    } catch {
+      setError('An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [loadDashboard]);
 
-  const loadDashboard = async () => {
-    setIsLoading(true);
-    const res = await api.get<AdminDashboard>('/admin/dashboard');
-    if (res.success && res.data) {
-      setDashboard(res.data);
-    }
-    setIsLoading(false);
-  };
-
-  const getStatusBadge = (status: ShortlistStatus) => {
-    switch (status) {
-      case ShortlistStatus.Pending:
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
         return <Badge variant="warning">Pending</Badge>;
-      case ShortlistStatus.Processing:
+      case 'processing':
         return <Badge variant="primary">Processing</Badge>;
-      case ShortlistStatus.Completed:
+      case 'completed':
         return <Badge variant="success">Completed</Badge>;
-      case ShortlistStatus.Cancelled:
+      case 'cancelled':
         return <Badge variant="danger">Cancelled</Badge>;
+      default:
+        return <Badge variant="default">{status}</Badge>;
     }
   };
 
@@ -65,6 +75,18 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+          <button
+            onClick={() => { setError(null); loadDashboard(); }}
+            className="ml-2 text-red-500 hover:text-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
 
       {/* Stats Grid */}

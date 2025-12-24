@@ -7,8 +7,9 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import LocationInput from '@/components/ui/LocationInput';
 import api from '@/lib/api';
-import { CandidateProfile, RemotePreference, Availability } from '@/types';
+import { CandidateProfile, RemotePreference, Availability, Location } from '@/types';
 
 export default function CandidateProfilePage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -26,7 +27,7 @@ export default function CandidateProfilePage() {
   const [lastName, setLastName] = useState('');
   const [linkedInUrl, setLinkedInUrl] = useState('');
   const [desiredRole, setDesiredRole] = useState('');
-  const [locationPreference, setLocationPreference] = useState('');
+  const [location, setLocation] = useState<Location>({});
   const [remotePreference, setRemotePreference] = useState<RemotePreference>(RemotePreference.Flexible);
   const [availability, setAvailability] = useState<Availability>(Availability.Open);
   const [profileVisible, setProfileVisible] = useState(true);
@@ -46,7 +47,13 @@ export default function CandidateProfilePage() {
       setLastName(res.data.lastName || '');
       setLinkedInUrl(res.data.linkedInUrl || '');
       setDesiredRole(res.data.desiredRole || '');
-      setLocationPreference(res.data.locationPreference || '');
+      // Load structured location, or fallback to legacy field
+      if (res.data.location) {
+        setLocation(res.data.location);
+      } else if (res.data.locationPreference) {
+        // Legacy fallback: parse as city string
+        setLocation({ city: res.data.locationPreference });
+      }
       setRemotePreference(res.data.remotePreference ?? RemotePreference.Flexible);
       setAvailability(res.data.availability);
       setProfileVisible(res.data.profileVisible);
@@ -59,12 +66,19 @@ export default function CandidateProfilePage() {
     setError('');
     setSuccess('');
 
+    // Build location display text for legacy compatibility
+    const locationDisplayText = [
+      location.city,
+      location.country,
+    ].filter(Boolean).join(', ') || null;
+
     const res = await api.put('/candidates/profile', {
       firstName: firstName || null,
       lastName: lastName || null,
       linkedInUrl: linkedInUrl || null,
       desiredRole: desiredRole || null,
-      locationPreference: locationPreference || null,
+      location: Object.keys(location).length > 0 ? location : null,
+      locationPreference: locationDisplayText, // Keep legacy field populated
       remotePreference,
       availability,
       profileVisible
@@ -268,13 +282,11 @@ export default function CandidateProfilePage() {
               placeholder="e.g. Senior Frontend Engineer"
             />
 
-            <Input
-              label="Location Preference"
-              id="location"
-              type="text"
-              value={locationPreference}
-              onChange={(e) => setLocationPreference(e.target.value)}
-              placeholder="e.g. San Francisco, Remote"
+            <LocationInput
+              label="Current Location (Optional)"
+              value={location}
+              onChange={setLocation}
+              showRelocation={true}
             />
 
             <div>

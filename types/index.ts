@@ -1,3 +1,27 @@
+// Location types
+export interface Location {
+  country?: string;
+  city?: string;
+  timezone?: string;
+  willingToRelocate?: boolean;
+  displayText?: string;
+}
+
+export interface HiringLocation {
+  isRemote: boolean;
+  country?: string;
+  city?: string;
+  timezone?: string;
+  displayText?: string;
+}
+
+export interface LocationRanking {
+  preferRemote?: boolean;
+  preferCountry?: string;
+  preferTimezone?: string;
+  preferRelocationFriendly?: boolean;
+}
+
 // Enums
 export enum UserType {
   Candidate = 0,
@@ -97,7 +121,9 @@ export interface CandidateProfile {
   cvDownloadUrl?: string;
   desiredRole?: string;
   locationPreference?: string;
+  location?: Location;
   remotePreference?: RemotePreference;
+  locationDisplayText?: string;
   availability: Availability;
   openToOpportunities: boolean;
   profileVisible: boolean;
@@ -117,6 +143,7 @@ export interface CompanyProfile {
   companySize?: string;
   website?: string;
   logoUrl?: string;
+  location?: Location;
   subscriptionTier: SubscriptionTier;
   subscriptionExpiresAt?: string;
   messagesRemaining: number;
@@ -129,7 +156,9 @@ export interface TalentCandidate {
   lastName?: string;
   desiredRole?: string;
   locationPreference?: string;
+  location?: Location;
   remotePreference?: RemotePreference;
+  locationDisplayText?: string;
   availability: Availability;
   seniorityEstimate?: SeniorityLevel;
   topSkills: string[];
@@ -175,6 +204,7 @@ export interface ShortlistRequest {
   techStackRequired: string[];
   seniorityRequired?: SeniorityLevel;
   locationPreference?: string;
+  hiringLocation?: HiringLocation;
   remoteAllowed: boolean;
   additionalNotes?: string;
   status: ShortlistStatus;

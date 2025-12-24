@@ -47,16 +47,26 @@ export default function AdminCandidatesPage() {
 
   const loadCandidates = async () => {
     setIsLoading(true);
-    let url = `/admin/candidates?page=${page}&pageSize=${pageSize}`;
-    if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
-    if (filterVisibility !== 'all') url += `&visible=${filterVisibility === 'visible'}`;
+    try {
+      let url = `/admin/candidates?page=${page}&pageSize=${pageSize}`;
+      if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+      if (filterVisibility !== 'all') url += `&visible=${filterVisibility === 'visible'}`;
 
-    const res = await api.get<PaginatedResponse>(url);
-    if (res.success && res.data) {
-      setCandidates(res.data.items);
-      setTotalCount(res.data.totalCount);
+      const res = await api.get<PaginatedResponse>(url);
+      if (res.success && res.data) {
+        setCandidates(res.data.items || []);
+        setTotalCount(res.data.totalCount || 0);
+      } else {
+        setCandidates([]);
+        setTotalCount(0);
+      }
+    } catch (error) {
+      console.error('Failed to load candidates:', error);
+      setCandidates([]);
+      setTotalCount(0);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleSearch = () => {

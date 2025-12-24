@@ -6,8 +6,9 @@ import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import LocationInput from '@/components/ui/LocationInput';
 import api from '@/lib/api';
-import { RemotePreference, Availability } from '@/types';
+import { RemotePreference, Availability, Location } from '@/types';
 
 export default function CandidateOnboardPage() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function CandidateOnboardPage() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [linkedInUrl, setLinkedInUrl] = useState('');
   const [desiredRole, setDesiredRole] = useState('');
-  const [locationPreference, setLocationPreference] = useState('');
+  const [location, setLocation] = useState<Location>({});
   const [remotePreference, setRemotePreference] = useState<RemotePreference>(RemotePreference.Flexible);
   const [availability, setAvailability] = useState<Availability>(Availability.Open);
 
@@ -74,11 +75,18 @@ export default function CandidateOnboardPage() {
     setIsLoading(true);
     setError('');
 
+    // Build location display text for legacy compatibility
+    const locationDisplayText = [
+      location.city,
+      location.country,
+    ].filter(Boolean).join(', ') || null;
+
     try {
       const res = await api.post('/candidates/onboard', {
         linkedInUrl: linkedInUrl || null,
         desiredRole: desiredRole || null,
-        locationPreference: locationPreference || null,
+        location: Object.keys(location).length > 0 ? location : null,
+        locationPreference: locationDisplayText, // Keep legacy field populated
         remotePreference,
         availability
       });
@@ -193,13 +201,11 @@ export default function CandidateOnboardPage() {
                 placeholder="e.g. Senior Frontend Engineer, Product Designer"
               />
 
-              <Input
-                label="Location preference (optional)"
-                id="location"
-                type="text"
-                value={locationPreference}
-                onChange={(e) => setLocationPreference(e.target.value)}
-                placeholder="e.g. San Francisco, London, Remote"
+              <LocationInput
+                label="Current Location (Optional)"
+                value={location}
+                onChange={setLocation}
+                showRelocation={true}
               />
 
               <div>

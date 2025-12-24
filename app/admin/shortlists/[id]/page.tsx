@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { ShortlistStatus, SeniorityLevel, Availability } from '@/types';
+import { SeniorityLevel, Availability } from '@/types';
 
 interface ShortlistCandidate {
   id: string;
@@ -30,26 +30,27 @@ interface ShortlistDetail {
   companyId: string;
   companyName: string;
   roleTitle: string;
-  techStackRequired: string[];
-  seniorityRequired: SeniorityLevel | null;
-  locationPreference: string | null;
-  remoteAllowed: boolean;
-  additionalNotes: string | null;
-  status: ShortlistStatus;
+  techStackRequired?: string[];
+  seniorityRequired?: SeniorityLevel | null;
+  locationPreference?: string | null;
+  remoteAllowed?: boolean;
+  additionalNotes?: string | null;
+  status: string;
   pricePaid: number | null;
   createdAt: string;
   completedAt: string | null;
-  candidates: ShortlistCandidate[];
+  candidates?: ShortlistCandidate[];
 }
 
 export default function ShortlistDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const shortlistId = params.id as string;
 
   const [shortlist, setShortlist] = useState<ShortlistDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isMatching, setIsMatching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadShortlist();
@@ -57,15 +58,18 @@ export default function ShortlistDetailPage() {
 
   const loadShortlist = async () => {
     setIsLoading(true);
+    setError(null);
     const res = await api.get<ShortlistDetail>(`/admin/shortlists/${shortlistId}`);
     if (res.success && res.data) {
       setShortlist(res.data);
+    } else {
+      setError(res.error || 'Failed to load shortlist');
     }
     setIsLoading(false);
   };
 
   const toggleCandidateApproval = (candidateId: string) => {
-    if (!shortlist) return;
+    if (!shortlist || !shortlist.candidates) return;
     setShortlist({
       ...shortlist,
       candidates: shortlist.candidates.map(c =>
@@ -75,7 +79,7 @@ export default function ShortlistDetailPage() {
   };
 
   const updateRank = (candidateId: string, newRank: number) => {
-    if (!shortlist) return;
+    if (!shortlist || !shortlist.candidates) return;
     setShortlist({
       ...shortlist,
       candidates: shortlist.candidates.map(c =>
@@ -85,8 +89,9 @@ export default function ShortlistDetailPage() {
   };
 
   const saveChanges = async () => {
-    if (!shortlist) return;
+    if (!shortlist || !shortlist.candidates) return;
     setIsSaving(true);
+    setError(null);
 
     const rankings = shortlist.candidates.map(c => ({
       candidateId: c.candidateId,
@@ -96,15 +101,20 @@ export default function ShortlistDetailPage() {
 
     const res = await api.put(`/admin/shortlists/${shortlistId}/rankings`, { rankings });
     if (res.success) {
-      alert('Changes saved successfully');
+      setError(null);
+    } else {
+      setError(res.error || 'Failed to save changes');
     }
     setIsSaving(false);
   };
 
-  const updateStatus = async (status: ShortlistStatus) => {
-    const res = await api.put(`/admin/shortlists/${shortlistId}/status`, { status });
+  const updateStatus = async (newStatus: string) => {
+    setError(null);
+    const res = await api.put(`/admin/shortlists/${shortlistId}/status`, { status: newStatus });
     if (res.success) {
-      setShortlist(prev => prev ? { ...prev, status } : null);
+      setShortlist(prev => prev ? { ...prev, status: newStatus } : null);
+    } else {
+      setError(res.error || 'Failed to update status');
     }
   };
 
@@ -113,28 +123,44 @@ export default function ShortlistDetailPage() {
       return;
     }
 
+    setError(null);
     const res = await api.post(`/admin/shortlists/${shortlistId}/deliver`);
     if (res.success) {
-      setShortlist(prev => prev ? { ...prev, status: ShortlistStatus.Completed } : null);
-      alert('Shortlist delivered successfully!');
+      setShortlist(prev => prev ? { ...prev, status: 'completed' } : null);
+    } else {
+      setError(res.error || 'Failed to deliver shortlist');
     }
   };
 
-  const getStatusBadge = (status: ShortlistStatus) => {
-    switch (status) {
-      case ShortlistStatus.Pending:
+  const runMatchingAlgorithm = async () => {
+    setIsMatching(true);
+    setError(null);
+    const res = await api.post(`/admin/shortlists/${shortlistId}/match`);
+    if (res.success) {
+      await loadShortlist();
+    } else {
+      setError(res.error || 'Failed to run matching algorithm');
+    }
+    setIsMatching(false);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
         return <Badge variant="warning">Pending</Badge>;
-      case ShortlistStatus.Processing:
+      case 'processing':
         return <Badge variant="primary">Processing</Badge>;
-      case ShortlistStatus.Completed:
+      case 'completed':
         return <Badge variant="success">Completed</Badge>;
-      case ShortlistStatus.Cancelled:
+      case 'cancelled':
         return <Badge variant="danger">Cancelled</Badge>;
+      default:
+        return <Badge variant="default">{status}</Badge>;
     }
   };
 
-  const getSeniorityLabel = (seniority: SeniorityLevel | null) => {
-    if (seniority === null) return 'Any';
+  const getSeniorityLabel = (seniority: SeniorityLevel | null | undefined) => {
+    if (seniority === null || seniority === undefined) return 'Any';
     const labels = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal'];
     return labels[seniority] || 'Any';
   };
@@ -171,6 +197,18 @@ export default function ShortlistDetailPage() {
 
   return (
     <div>
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+          <button
+            onClick={() => setError(null)}
+            className="ml-2 text-red-500 hover:text-red-700"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -189,12 +227,12 @@ export default function ShortlistDetailPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {shortlist.status === ShortlistStatus.Pending && (
-            <Button onClick={() => updateStatus(ShortlistStatus.Processing)}>
+          {shortlist.status.toLowerCase() === 'pending' && (
+            <Button onClick={() => updateStatus('processing')}>
               Start Processing
             </Button>
           )}
-          {shortlist.status === ShortlistStatus.Processing && (
+          {shortlist.status.toLowerCase() === 'processing' && (
             <>
               <Button variant="outline" onClick={saveChanges} isLoading={isSaving}>
                 Save Changes
@@ -249,14 +287,14 @@ export default function ShortlistDetailPage() {
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">
-            Matched Candidates ({shortlist.candidates.length})
+            Matched Candidates ({shortlist.candidates?.length || 0})
           </h2>
           <p className="text-sm text-gray-500">
-            {shortlist.candidates.filter(c => c.adminApproved).length} approved
+            {shortlist.candidates?.filter(c => c.adminApproved).length || 0} approved
           </p>
         </div>
 
-        {shortlist.candidates.length > 0 ? (
+        {shortlist.candidates && shortlist.candidates.length > 0 ? (
           <div className="space-y-4">
             {shortlist.candidates
               .sort((a, b) => a.rank - b.rank)
@@ -311,14 +349,14 @@ export default function ShortlistDetailPage() {
                           value={candidate.rank}
                           onChange={(e) => updateRank(candidate.candidateId, parseInt(e.target.value) || 1)}
                           className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-                          disabled={shortlist.status !== ShortlistStatus.Processing}
+                          disabled={shortlist.status.toLowerCase() !== 'processing'}
                         />
                       </div>
                       <Button
                         variant={candidate.adminApproved ? 'primary' : 'outline'}
                         size="sm"
                         onClick={() => toggleCandidateApproval(candidate.candidateId)}
-                        disabled={shortlist.status !== ShortlistStatus.Processing}
+                        disabled={shortlist.status.toLowerCase() !== 'processing'}
                       >
                         {candidate.adminApproved ? 'Approved' : 'Approve'}
                       </Button>
@@ -330,7 +368,7 @@ export default function ShortlistDetailPage() {
         ) : (
           <div className="text-center py-8">
             <p className="text-gray-500">No candidates matched yet</p>
-            <Button className="mt-4" onClick={() => api.post(`/admin/shortlists/${shortlistId}/match`)}>
+            <Button className="mt-4" onClick={runMatchingAlgorithm} isLoading={isMatching}>
               Run Matching Algorithm
             </Button>
           </div>

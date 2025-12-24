@@ -6,12 +6,23 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserType } from '@/types';
 
+// Helper to check if user is admin (handles both string and number types)
+function isAdmin(userType: unknown): boolean {
+  if (typeof userType === 'number') {
+    return userType === UserType.Admin; // 2
+  }
+  if (typeof userType === 'string') {
+    return userType.toLowerCase() === 'admin';
+  }
+  return false;
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && (!user || user.userType !== UserType.Admin)) {
+    if (!isLoading && (!user || !isAdmin(user.userType))) {
       router.push('/login');
     }
   }, [user, isLoading, router]);
@@ -24,7 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!user || user.userType !== UserType.Admin) {
+  if (!user || !isAdmin(user.userType)) {
     return null;
   }
 
@@ -42,7 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/admin/dashboard" className="text-xl font-bold">
-              Pixo Admin
+              Bixo Admin
             </Link>
           </div>
           <div className="flex items-center gap-4">

@@ -40,25 +40,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await api.post<AuthResponse>('/auth/login', { email, password });
+    try {
+      const response = await api.post<AuthResponse>('/auth/login', { email, password });
+      console.log('Login response:', response);
 
-    if (response.success && response.data) {
-      api.setTokens(response.data.accessToken, response.data.refreshToken, response.data.expiresAt);
-      await checkAuth();
+      if (response.success && response.data) {
+        api.setTokens(response.data.accessToken, response.data.refreshToken, response.data.expiresAt);
+        await checkAuth();
 
-      // Redirect based on user type
-      if (response.data.userType === UserType.Candidate) {
-        router.push('/candidate/dashboard');
-      } else if (response.data.userType === UserType.Company) {
-        router.push('/company/dashboard');
-      } else if (response.data.userType === UserType.Admin) {
-        router.push('/admin/dashboard');
+        console.log('User type from response:', response.data.userType);
+
+        // Normalize user type to number (API may return string like "Candidate" or number like 0)
+        const userType = response.data.userType as string | number;
+        let userTypeNum: number;
+
+        if (typeof userType === 'number') {
+          userTypeNum = userType;
+        } else if (typeof userType === 'string') {
+          // Map string names to numbers (case insensitive)
+          const typeMap: Record<string, number> = {
+            'candidate': 0,
+            'company': 1,
+            'admin': 2,
+          };
+          userTypeNum = typeMap[userType.toLowerCase()] ?? -1;
+        } else {
+          userTypeNum = -1;
+        }
+
+        if (userTypeNum === 0) {
+          router.push('/candidate/dashboard');
+        } else if (userTypeNum === 1) {
+          router.push('/company/dashboard');
+        } else if (userTypeNum === 2) {
+          router.push('/admin/dashboard');
+        } else {
+          console.warn('Unknown user type:', userType, '- redirecting to home');
+          router.push('/');
+        }
+
+        return { success: true };
       }
 
-      return { success: true };
+      // Handle both 'error' and 'message' fields from API
+      const errorMsg = response.error || (response as unknown as { message?: string }).message || 'Login failed';
+      return { success: false, error: errorMsg };
+    } catch (err) {
+      console.error('Login error:', err);
+      return { success: false, error: 'Network error - is the backend running?' };
     }
-
-    return { success: false, error: response.error || 'Login failed' };
   };
 
   const registerCandidate = async (email: string, password: string, firstName: string, lastName: string) => {

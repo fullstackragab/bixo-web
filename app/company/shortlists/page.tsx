@@ -8,8 +8,9 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import HiringLocationInput from '@/components/ui/HiringLocationInput';
 import api from '@/lib/api';
-import { ShortlistStatus, SeniorityLevel } from '@/types';
+import { ShortlistStatus, SeniorityLevel, HiringLocation } from '@/types';
 
 interface ShortlistRequest {
   id: string;
@@ -34,8 +35,7 @@ export default function CompanyShortlistsPage() {
   const [roleTitle, setRoleTitle] = useState('');
   const [techStack, setTechStack] = useState('');
   const [seniority, setSeniority] = useState('');
-  const [location, setLocation] = useState('');
-  const [remoteAllowed, setRemoteAllowed] = useState(true);
+  const [hiringLocation, setHiringLocation] = useState<HiringLocation>({ isRemote: true });
   const [notes, setNotes] = useState('');
 
   const loadShortlists = useCallback(async () => {
@@ -72,13 +72,20 @@ export default function CompanyShortlistsPage() {
       .map(s => s.trim())
       .filter(Boolean);
 
+    // Build location display text for legacy compatibility
+    const locationDisplayText = [
+      hiringLocation.city,
+      hiringLocation.country,
+    ].filter(Boolean).join(', ') || null;
+
     try {
       const res = await api.post<{ id: string }>('/shortlists/request', {
         roleTitle,
         techStackRequired: techStackArray.length > 0 ? techStackArray : [],
         seniorityRequired: seniority ? parseInt(seniority) : null,
-        locationPreference: location || null,
-        remoteAllowed,
+        hiringLocation,
+        locationPreference: locationDisplayText, // Keep legacy field populated
+        remoteAllowed: hiringLocation.isRemote, // Keep legacy field populated
         additionalNotes: notes || null
       });
 
@@ -87,7 +94,7 @@ export default function CompanyShortlistsPage() {
         setRoleTitle('');
         setTechStack('');
         setSeniority('');
-        setLocation('');
+        setHiringLocation({ isRemote: true });
         setNotes('');
         loadShortlists();
       } else {
@@ -179,43 +186,27 @@ export default function CompanyShortlistsPage() {
                 placeholder="Python, Django, PostgreSQL (comma separated)"
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Seniority Level</label>
-                  <select
-                    value={seniority}
-                    onChange={(e) => setSeniority(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="">Any</option>
-                    <option value="0">Junior</option>
-                    <option value="1">Mid</option>
-                    <option value="2">Senior</option>
-                    <option value="3">Lead</option>
-                    <option value="4">Principal</option>
-                  </select>
-                </div>
-
-                <Input
-                  label="Location Preference"
-                  id="location"
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. San Francisco, New York"
-                />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Seniority Level</label>
+                <select
+                  value={seniority}
+                  onChange={(e) => setSeniority(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Any</option>
+                  <option value="0">Junior</option>
+                  <option value="1">Mid</option>
+                  <option value="2">Senior</option>
+                  <option value="3">Lead</option>
+                  <option value="4">Principal</option>
+                </select>
               </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="remote"
-                  checked={remoteAllowed}
-                  onChange={(e) => setRemoteAllowed(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 rounded"
-                />
-                <label htmlFor="remote" className="text-sm text-gray-700">Remote candidates OK</label>
-              </div>
+              <HiringLocationInput
+                label="Hiring Location"
+                value={hiringLocation}
+                onChange={setHiringLocation}
+              />
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>

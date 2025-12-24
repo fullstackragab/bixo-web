@@ -48,19 +48,29 @@ export default function AdminCompaniesPage() {
 
   const loadCompanies = async () => {
     setIsLoading(true);
-    let url = `/admin/companies?page=${page}&pageSize=${pageSize}`;
-    if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
-    if (filterTier !== 'all') {
-      const tierValue = filterTier === 'free' ? 0 : filterTier === 'starter' ? 1 : 2;
-      url += `&tier=${tierValue}`;
-    }
+    try {
+      let url = `/admin/companies?page=${page}&pageSize=${pageSize}`;
+      if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
+      if (filterTier !== 'all') {
+        const tierValue = filterTier === 'free' ? 0 : filterTier === 'starter' ? 1 : 2;
+        url += `&tier=${tierValue}`;
+      }
 
-    const res = await api.get<PaginatedResponse>(url);
-    if (res.success && res.data) {
-      setCompanies(res.data.items);
-      setTotalCount(res.data.totalCount);
+      const res = await api.get<PaginatedResponse>(url);
+      if (res.success && res.data) {
+        setCompanies(res.data.items || []);
+        setTotalCount(res.data.totalCount || 0);
+      } else {
+        setCompanies([]);
+        setTotalCount(0);
+      }
+    } catch (error) {
+      console.error('Failed to load companies:', error);
+      setCompanies([]);
+      setTotalCount(0);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleSearch = () => {

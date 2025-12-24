@@ -32,7 +32,7 @@ export default function HomePage() {
 
       {/* How it Works */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">How Pixo Works</h2>
+        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">How Bixo Works</h2>
 
         <div className="grid md:grid-cols-2 gap-12">
           {/* For Candidates */}
@@ -181,7 +181,7 @@ export default function HomePage() {
       {/* CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
         <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to find your next hire?</h2>
-        <p className="text-xl text-gray-600 mb-8">Join thousands of companies finding top tech talent on Pixo</p>
+        <p className="text-xl text-gray-600 mb-8">Join thousands of companies finding top tech talent on Bixo</p>
         <Link href="/register">
           <Button size="lg">Get Started Free</Button>
         </Link>
@@ -191,8 +191,8 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-2xl font-bold">Pixo</p>
-            <p className="text-gray-400 mt-4 md:mt-0">&copy; 2024 Pixo. All rights reserved.</p>
+            <p className="text-2xl" style={{ fontFamily: 'var(--font-dynapuff)' }}>Bixo</p>
+            <p className="text-gray-400 mt-4 md:mt-0">&copy; 2024 Bixo. All rights reserved.</p>
           </div>
         </div>
       </footer>

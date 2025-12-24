@@ -27,8 +27,8 @@ export default function Header() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href={isAuthenticated ? getDashboardLink() : '/'} className="text-2xl font-bold text-blue-600">
-              Pixo
+            <Link href={isAuthenticated ? getDashboardLink() : '/'} className="text-2xl text-blue-600" style={{ fontFamily: 'var(--font-dynapuff)' }}>
+              Bixo
             </Link>
           </div>
 
@@ -50,6 +50,9 @@ export default function Header() {
                     </Link>
                     <Link href="/company/shortlists" className="text-gray-600 hover:text-gray-900">
                       Shortlists
+                    </Link>
+                    <Link href="/company/settings" className="text-gray-600 hover:text-gray-900">
+                      Settings
                     </Link>
                   </>
                 )}

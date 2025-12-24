@@ -80,9 +80,40 @@ class ApiClient {
         }
       }
 
-      const result = await response.json();
-      return result;
+      // Handle empty responses (204 No Content, etc.)
+      const text = await response.text();
+      if (!text) {
+        if (response.ok) {
+          return { success: true, data: null as T };
+        }
+        return { success: false, error: `Request failed with status ${response.status}` };
+      }
+
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        return { success: false, error: 'Invalid JSON response from server' };
+      }
+
+      // Handle both wrapped { success, data } and unwrapped responses
+      if (result.success !== undefined) {
+        // Already in expected format
+        return result;
+      }
+
+      // If the response is the data directly (no success wrapper)
+      if (response.ok) {
+        return { success: true, data: result as T };
+      }
+
+      // Error response
+      return {
+        success: false,
+        error: result.message || result.error || `Request failed with status ${response.status}`
+      };
     } catch (error) {
+      console.error('API request error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Network error'
@@ -141,9 +172,37 @@ class ApiClient {
         }
       }
 
-      const result = await response.json();
-      return result;
+      // Handle empty responses (204 No Content, etc.)
+      const text = await response.text();
+      if (!text) {
+        if (response.ok) {
+          return { success: true, data: null as T };
+        }
+        return { success: false, error: `Request failed with status ${response.status}` };
+      }
+
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        return { success: false, error: 'Invalid JSON response from server' };
+      }
+
+      // Handle both wrapped { success, data } and unwrapped responses
+      if (result.success !== undefined) {
+        return result;
+      }
+
+      if (response.ok) {
+        return { success: true, data: result as T };
+      }
+
+      return {
+        success: false,
+        error: result.message || result.error || `Request failed with status ${response.status}`
+      };
     } catch (error) {
+      console.error('API upload error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Network error'
