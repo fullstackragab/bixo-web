@@ -198,6 +198,15 @@ export interface Conversation {
 }
 
 // Shortlist types
+export type ShortlistPricingType = 'new' | 'follow_up' | 'free_regen';
+
+export interface ShortlistChainItem {
+  id: string;
+  roleTitle: string;
+  createdAt: string;
+  candidatesCount: number;
+}
+
 export interface ShortlistRequest {
   id: string;
   roleTitle: string;
@@ -212,6 +221,36 @@ export interface ShortlistRequest {
   createdAt: string;
   completedAt?: string;
   candidatesCount: number;
+  // Versioning fields
+  previousRequestId?: string | null;
+  pricingType?: ShortlistPricingType;
+  followUpDiscount?: number;
+  isFollowUp?: boolean;
+  newCandidatesCount?: number;
+  repeatedCandidatesCount?: number;
+}
+
+export interface ShortlistCandidate {
+  candidateId: string;
+  firstName: string | null;
+  lastName: string | null;
+  desiredRole: string | null;
+  seniorityEstimate: SeniorityLevel | null;
+  availability: Availability;
+  matchScore: number;
+  matchReason: string | null;
+  rank: number;
+  skills: string[];
+  // Versioning fields
+  isNew?: boolean;
+  previouslyRecommendedIn?: string | null;
+  reInclusionReason?: string | null;
+  statusLabel?: string;
+}
+
+export interface ShortlistDetail extends ShortlistRequest {
+  candidates: ShortlistCandidate[];
+  chain?: ShortlistChainItem[];
 }
 
 // Notification types

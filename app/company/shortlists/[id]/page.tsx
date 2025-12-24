@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
@@ -9,7 +9,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { ShortlistStatus, SeniorityLevel, Availability } from '@/types';
+import { ShortlistStatus, SeniorityLevel, Availability, ShortlistPricingType } from '@/types';
 
 interface ShortlistCandidate {
   candidateId: string;
@@ -22,6 +22,18 @@ interface ShortlistCandidate {
   matchReason: string | null;
   rank: number;
   skills: string[];
+  // Versioning fields
+  isNew?: boolean;
+  previouslyRecommendedIn?: string | null;
+  reInclusionReason?: string | null;
+  statusLabel?: string;
+}
+
+interface ShortlistChainItem {
+  id: string;
+  roleTitle: string;
+  createdAt: string;
+  candidatesCount: number;
 }
 
 interface ShortlistDetail {
@@ -34,16 +46,39 @@ interface ShortlistDetail {
   additionalNotes: string | null;
   status: ShortlistStatus;
   createdAt: string;
+  pricePaid?: number;
   candidates: ShortlistCandidate[];
+  // Versioning fields
+  previousRequestId?: string | null;
+  pricingType?: ShortlistPricingType;
+  followUpDiscount?: number;
+  isFollowUp?: boolean;
+  newCandidatesCount?: number;
+  repeatedCandidatesCount?: number;
+  chain?: ShortlistChainItem[];
 }
 
 export default function CompanyShortlistDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const shortlistId = params.id as string;
   const { user, isLoading: authLoading } = useAuth();
 
   const [shortlist, setShortlist] = useState<ShortlistDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleRequestMore = () => {
+    if (!shortlist) return;
+    const queryParams = new URLSearchParams({
+      previousRequestId: shortlist.id,
+      roleTitle: shortlist.roleTitle,
+      techStack: shortlist.techStackRequired?.join(',') || '',
+      seniority: shortlist.seniorityRequired?.toString() || '',
+      location: shortlist.locationPreference || '',
+      remoteAllowed: shortlist.remoteAllowed ? 'true' : 'false',
+    });
+    router.push(`/company/shortlists?requestMore=true&${queryParams.toString()}`);
+  };
 
   useEffect(() => {
     if (!authLoading && user && shortlistId) {
@@ -126,12 +161,65 @@ export default function CompanyShortlistDetailPage() {
             <h1 className="text-2xl font-bold text-gray-900">{shortlist.roleTitle}</h1>
             <div className="flex items-center gap-3 mt-2">
               {getStatusBadge(shortlist.status)}
+              {shortlist.isFollowUp && (
+                <Badge variant="primary">
+                  Follow-up {shortlist.followUpDiscount ? `(${shortlist.followUpDiscount}% discount)` : ''}
+                </Badge>
+              )}
               <span className="text-gray-500">
                 Created {new Date(shortlist.createdAt).toLocaleDateString()}
               </span>
             </div>
           </div>
+          {shortlist.status === ShortlistStatus.Completed && (
+            <Button variant="outline" onClick={handleRequestMore}>
+              Request More Candidates
+            </Button>
+          )}
         </div>
+
+        {/* Pricing Breakdown for Follow-ups */}
+        {shortlist.isFollowUp && shortlist.pricePaid !== undefined && (
+          <Card className="mb-6 bg-green-50 border-green-200">
+            <h2 className="text-lg font-semibold text-green-800 mb-3">Follow-up Pricing</h2>
+            <div className="flex items-center gap-6">
+              <div>
+                <p className="text-sm text-green-700">Original price</p>
+                <p className="text-lg text-green-600 line-through">$299</p>
+              </div>
+              <div>
+                <p className="text-sm text-green-700">Discount ({shortlist.followUpDiscount}%)</p>
+                <p className="text-lg text-green-600">-${((299 * (shortlist.followUpDiscount || 0)) / 100).toFixed(0)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-green-700">You paid</p>
+                <p className="text-lg font-bold text-green-800">${shortlist.pricePaid}</p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Candidate Stats */}
+        {shortlist.status === ShortlistStatus.Completed && (shortlist.newCandidatesCount !== undefined || shortlist.repeatedCandidatesCount !== undefined) && (
+          <Card className="mb-6">
+            <div className="flex items-center gap-8">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-gray-900">{shortlist.candidates.length}</p>
+                <p className="text-sm text-gray-500">Total Candidates</p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-green-600">{shortlist.newCandidatesCount || 0}</p>
+                <p className="text-sm text-gray-500">New</p>
+              </div>
+              {(shortlist.repeatedCandidatesCount || 0) > 0 && (
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-yellow-600">{shortlist.repeatedCandidatesCount}</p>
+                  <p className="text-sm text-gray-500">Previously Recommended</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Requirements */}
         <Card className="mb-6">
@@ -178,23 +266,39 @@ export default function CompanyShortlistDetailPage() {
                 .map((candidate) => (
                   <div
                     key={candidate.candidateId}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-blue-200 transition-colors"
+                    className={`p-4 border rounded-lg hover:border-blue-200 transition-colors ${
+                      candidate.isNew === false ? 'border-yellow-200 bg-yellow-50/30' : 'border-gray-200'
+                    }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
                           <span className="text-lg font-bold text-blue-600">#{candidate.rank}</span>
                           <div>
-                            <h3 className="font-semibold text-gray-900">
-                              {candidate.firstName && candidate.lastName
-                                ? `${candidate.firstName} ${candidate.lastName.charAt(0)}.`
-                                : 'Candidate'}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-gray-900">
+                                {candidate.firstName && candidate.lastName
+                                  ? `${candidate.firstName} ${candidate.lastName.charAt(0)}.`
+                                  : 'Candidate'}
+                              </h3>
+                              {candidate.isNew !== undefined && (
+                                <Badge variant={candidate.isNew ? 'success' : 'warning'}>
+                                  {candidate.statusLabel || (candidate.isNew ? 'New' : 'Previously recommended')}
+                                </Badge>
+                              )}
+                            </div>
                             {candidate.desiredRole && (
                               <p className="text-sm text-gray-600">{candidate.desiredRole}</p>
                             )}
                           </div>
                         </div>
+
+                        {/* Re-inclusion reason for repeated candidates */}
+                        {!candidate.isNew && candidate.reInclusionReason && (
+                          <div className="mt-2 p-2 bg-yellow-100 border border-yellow-200 rounded text-sm text-yellow-800">
+                            <span className="font-medium">Re-included because:</span> {candidate.reInclusionReason}
+                          </div>
+                        )}
 
                         <div className="flex flex-wrap gap-2 mt-3">
                           {getAvailabilityBadge(candidate.availability)}
@@ -241,6 +345,54 @@ export default function CompanyShortlistDetailPage() {
             <p className="text-gray-500 text-center py-8">No candidates available</p>
           )}
         </Card>
+
+        {/* Related Shortlists Chain */}
+        {shortlist.chain && shortlist.chain.length > 1 && (
+          <Card className="mt-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Related Shortlists</h2>
+            <div className="relative">
+              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+              <div className="space-y-4">
+                {shortlist.chain.map((item, index) => (
+                  <div key={item.id} className="relative flex items-start gap-4 pl-8">
+                    <div className={`absolute left-2.5 w-3 h-3 rounded-full border-2 ${
+                      item.id === shortlist.id
+                        ? 'bg-blue-600 border-blue-600'
+                        : 'bg-white border-gray-300'
+                    }`}></div>
+                    <div className={`flex-1 p-3 rounded-lg ${
+                      item.id === shortlist.id ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          {item.id === shortlist.id ? (
+                            <span className="font-medium text-blue-700">{item.roleTitle}</span>
+                          ) : (
+                            <Link
+                              href={`/company/shortlists/${item.id}`}
+                              className="font-medium text-gray-900 hover:text-blue-600"
+                            >
+                              {item.roleTitle}
+                            </Link>
+                          )}
+                          <p className="text-sm text-gray-500">
+                            {new Date(item.createdAt).toLocaleDateString()} - {item.candidatesCount} candidates
+                          </p>
+                        </div>
+                        {item.id === shortlist.id && (
+                          <Badge variant="primary">Current</Badge>
+                        )}
+                        {index === 0 && item.id !== shortlist.id && (
+                          <Badge variant="default">Original</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
       </main>
     </div>
   );

@@ -7,7 +7,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import api from '@/lib/api';
-import { SeniorityLevel, Availability } from '@/types';
+import { SeniorityLevel, Availability, ShortlistPricingType } from '@/types';
 
 interface ShortlistCandidate {
   id: string;
@@ -23,6 +23,18 @@ interface ShortlistCandidate {
   rank: number;
   adminApproved: boolean;
   skills: string[];
+  // Versioning fields
+  isNew?: boolean;
+  previouslyRecommendedIn?: string | null;
+  reInclusionReason?: string | null;
+  statusLabel?: string;
+}
+
+interface ShortlistChainItem {
+  id: string;
+  roleTitle: string;
+  createdAt: string;
+  candidatesCount: number;
 }
 
 interface ShortlistDetail {
@@ -40,6 +52,14 @@ interface ShortlistDetail {
   createdAt: string;
   completedAt: string | null;
   candidates?: ShortlistCandidate[];
+  // Versioning fields
+  previousRequestId?: string | null;
+  pricingType?: ShortlistPricingType;
+  followUpDiscount?: number;
+  isFollowUp?: boolean;
+  newCandidatesCount?: number;
+  repeatedCandidatesCount?: number;
+  chain?: ShortlistChainItem[];
 }
 
 export default function ShortlistDetailPage() {
@@ -220,6 +240,11 @@ export default function ShortlistDetailPage() {
             </Link>
             <h1 className="text-2xl font-bold text-gray-900">{shortlist.roleTitle}</h1>
             {getStatusBadge(shortlist.status)}
+            {shortlist.isFollowUp && (
+              <Badge variant="primary">
+                Follow-up {shortlist.followUpDiscount ? `(${shortlist.followUpDiscount}% discount)` : ''}
+              </Badge>
+            )}
           </div>
           <p className="text-gray-500">
             Requested by <span className="font-medium text-gray-700">{shortlist.companyName}</span> on{' '}
@@ -302,7 +327,11 @@ export default function ShortlistDetailPage() {
                 <div
                   key={candidate.candidateId}
                   className={`p-4 rounded-lg border ${
-                    candidate.adminApproved ? 'border-green-200 bg-green-50' : 'border-gray-200'
+                    candidate.adminApproved
+                      ? 'border-green-200 bg-green-50'
+                      : candidate.isNew === false
+                        ? 'border-yellow-200 bg-yellow-50/30'
+                        : 'border-gray-200'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -310,11 +339,18 @@ export default function ShortlistDetailPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-lg font-bold text-gray-400">#{candidate.rank}</span>
                         <div>
-                          <p className="font-medium text-gray-900">
-                            {candidate.firstName && candidate.lastName
-                              ? `${candidate.firstName} ${candidate.lastName}`
-                              : candidate.email}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">
+                              {candidate.firstName && candidate.lastName
+                                ? `${candidate.firstName} ${candidate.lastName}`
+                                : candidate.email}
+                            </p>
+                            {candidate.isNew !== undefined && (
+                              <Badge variant={candidate.isNew ? 'success' : 'warning'}>
+                                {candidate.statusLabel || (candidate.isNew ? 'New' : 'Repeated')}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-500">{candidate.email}</p>
                         </div>
                         {getAvailabilityBadge(candidate.availability)}
@@ -323,6 +359,14 @@ export default function ShortlistDetailPage() {
                           {candidate.matchScore}% match
                         </div>
                       </div>
+
+                      {/* Re-inclusion reason for repeated candidates */}
+                      {!candidate.isNew && candidate.reInclusionReason && (
+                        <div className="mt-2 p-2 bg-yellow-100 border border-yellow-200 rounded text-sm text-yellow-800">
+                          <span className="font-medium">Re-included because:</span> {candidate.reInclusionReason}
+                        </div>
+                      )}
+
                       {candidate.desiredRole && (
                         <p className="text-sm text-gray-600 mt-2">Looking for: {candidate.desiredRole}</p>
                       )}
@@ -374,6 +418,54 @@ export default function ShortlistDetailPage() {
           </div>
         )}
       </Card>
+
+      {/* Related Shortlists Chain */}
+      {shortlist.chain && shortlist.chain.length > 1 && (
+        <Card className="mt-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Related Shortlists</h2>
+          <div className="relative">
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+            <div className="space-y-4">
+              {shortlist.chain.map((item, index) => (
+                <div key={item.id} className="relative flex items-start gap-4 pl-8">
+                  <div className={`absolute left-2.5 w-3 h-3 rounded-full border-2 ${
+                    item.id === shortlist.id
+                      ? 'bg-blue-600 border-blue-600'
+                      : 'bg-white border-gray-300'
+                  }`}></div>
+                  <div className={`flex-1 p-3 rounded-lg ${
+                    item.id === shortlist.id ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        {item.id === shortlist.id ? (
+                          <span className="font-medium text-blue-700">{item.roleTitle}</span>
+                        ) : (
+                          <Link
+                            href={`/admin/shortlists/${item.id}`}
+                            className="font-medium text-gray-900 hover:text-blue-600"
+                          >
+                            {item.roleTitle}
+                          </Link>
+                        )}
+                        <p className="text-sm text-gray-500">
+                          {new Date(item.createdAt).toLocaleDateString()} - {item.candidatesCount} candidates
+                        </p>
+                      </div>
+                      {item.id === shortlist.id && (
+                        <Badge variant="primary">Current</Badge>
+                      )}
+                      {index === 0 && item.id !== shortlist.id && (
+                        <Badge variant="default">Original</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

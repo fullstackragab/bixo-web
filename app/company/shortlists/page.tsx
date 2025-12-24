@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
@@ -10,7 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import HiringLocationInput from '@/components/ui/HiringLocationInput';
 import api from '@/lib/api';
-import { ShortlistStatus, SeniorityLevel, HiringLocation } from '@/types';
+import { ShortlistStatus, SeniorityLevel, HiringLocation, ShortlistPricingType } from '@/types';
 
 interface ShortlistRequest {
   id: string;
@@ -20,10 +21,18 @@ interface ShortlistRequest {
   status: ShortlistStatus;
   candidatesCount: number;
   createdAt: string;
+  // Versioning fields
+  previousRequestId?: string | null;
+  pricingType?: ShortlistPricingType;
+  followUpDiscount?: number;
+  isFollowUp?: boolean;
+  newCandidatesCount?: number;
+  repeatedCandidatesCount?: number;
 }
 
-export default function CompanyShortlistsPage() {
+function CompanyShortlistsContent() {
   const { user, isLoading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [shortlists, setShortlists] = useState<ShortlistRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +46,27 @@ export default function CompanyShortlistsPage() {
   const [seniority, setSeniority] = useState('');
   const [hiringLocation, setHiringLocation] = useState<HiringLocation>({ isRemote: true });
   const [notes, setNotes] = useState('');
+  const [previousRequestId, setPreviousRequestId] = useState<string | null>(null);
+
+  // Handle pre-fill from "Request More Candidates" button
+  useEffect(() => {
+    const isRequestMore = searchParams.get('requestMore') === 'true';
+    const prevId = searchParams.get('previousRequestId');
+
+    if (isRequestMore && prevId) {
+      setPreviousRequestId(prevId);
+      setRoleTitle(searchParams.get('roleTitle') || '');
+      setTechStack(searchParams.get('techStack') || '');
+      setSeniority(searchParams.get('seniority') || '');
+      const location = searchParams.get('location');
+      const remoteAllowed = searchParams.get('remoteAllowed') === 'true';
+      setHiringLocation({
+        isRemote: remoteAllowed,
+        country: location || undefined,
+      });
+      setShowForm(true);
+    }
+  }, [searchParams]);
 
   const loadShortlists = useCallback(async () => {
     setIsLoading(true);
@@ -86,7 +116,8 @@ export default function CompanyShortlistsPage() {
         hiringLocation,
         locationPreference: locationDisplayText, // Keep legacy field populated
         remoteAllowed: hiringLocation.isRemote, // Keep legacy field populated
-        additionalNotes: notes || null
+        additionalNotes: notes || null,
+        previousRequestId: previousRequestId || undefined, // Link to previous shortlist for follow-ups
       });
 
       if (res.success) {
@@ -96,6 +127,9 @@ export default function CompanyShortlistsPage() {
         setSeniority('');
         setHiringLocation({ isRemote: true });
         setNotes('');
+        setPreviousRequestId(null);
+        // Clear URL params
+        window.history.replaceState({}, '', '/company/shortlists');
         loadShortlists();
       } else {
         // Handle both 'error' and 'message' fields from API
@@ -160,7 +194,15 @@ export default function CompanyShortlistsPage() {
         {/* Request Form */}
         {showForm && (
           <Card className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Request a Shortlist</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              {previousRequestId ? 'Request More Candidates' : 'Request a Shortlist'}
+            </h2>
+            {previousRequestId && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+                <span className="font-medium">Follow-up request:</span> This will be linked to your previous shortlist.
+                Previous candidates will be excluded by default, and you may qualify for a discount.
+              </div>
+            )}
             {formError && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 {formError}
@@ -221,7 +263,11 @@ export default function CompanyShortlistsPage() {
 
               <div className="flex gap-3">
                 <Button type="submit" isLoading={isSubmitting}>Submit Request</Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={() => {
+                  setShowForm(false);
+                  setPreviousRequestId(null);
+                  window.history.replaceState({}, '', '/company/shortlists');
+                }}>Cancel</Button>
               </div>
             </form>
           </Card>
@@ -240,6 +286,7 @@ export default function CompanyShortlistsPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tech Stack</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidates</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">New / Repeated</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                   </tr>
@@ -247,7 +294,16 @@ export default function CompanyShortlistsPage() {
                 <tbody className="divide-y divide-gray-200">
                   {shortlists.map((shortlist) => (
                     <tr key={shortlist.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{shortlist.roleTitle}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">{shortlist.roleTitle}</span>
+                          {shortlist.isFollowUp && (
+                            <Badge variant="primary">
+                              Follow-up {shortlist.followUpDiscount ? `(${shortlist.followUpDiscount}% off)` : ''}
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
                           {shortlist.techStackRequired?.slice(0, 3).map((tech, i) => (
@@ -257,6 +313,17 @@ export default function CompanyShortlistsPage() {
                       </td>
                       <td className="px-4 py-3">{getStatusBadge(shortlist.status)}</td>
                       <td className="px-4 py-3 text-gray-600">{shortlist.candidatesCount}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {shortlist.newCandidatesCount !== undefined && shortlist.repeatedCandidatesCount !== undefined ? (
+                          <span>
+                            <span className="text-green-600 font-medium">{shortlist.newCandidatesCount}</span>
+                            {' / '}
+                            <span className="text-yellow-600">{shortlist.repeatedCandidatesCount}</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-gray-500 text-sm">
                         {new Date(shortlist.createdAt).toLocaleDateString()}
                       </td>
@@ -298,8 +365,27 @@ export default function CompanyShortlistsPage() {
               <p className="text-sm text-green-600">Save 23%</p>
             </div>
           </div>
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="font-medium text-green-800">Follow-up Discounts</p>
+            <p className="text-sm text-green-700 mt-1">
+              Need more candidates for a role? Request a follow-up shortlist and save up to 50%
+              on similar requests within 30 days.
+            </p>
+          </div>
         </Card>
       </main>
     </div>
+  );
+}
+
+export default function CompanyShortlistsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <CompanyShortlistsContent />
+    </Suspense>
   );
 }
