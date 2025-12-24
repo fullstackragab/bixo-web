@@ -1,14 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserType } from '@/types';
 import Button from '@/components/ui/Button';
+import api from '@/lib/api';
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.userType === UserType.Candidate) {
+      loadUnreadCount();
+    }
+  }, [isAuthenticated, user?.userType]);
+
+  interface Message {
+    id: string;
+    isRead: boolean;
+  }
+
+  const loadUnreadCount = async () => {
+    const res = await api.get<Message[]>('/candidates/messages');
+    if (res.success && res.data) {
+      const unread = res.data.filter(m => !m.isRead).length;
+      setUnreadCount(unread);
+    }
+  };
 
   const getDashboardLink = () => {
     if (!user) return '/';
@@ -44,8 +65,13 @@ export default function Header() {
                   Dashboard
                 </Link>
                 {user?.userType === UserType.Candidate && (
-                  <Link href="/candidate/messages" className="text-gray-600 hover:text-gray-900">
+                  <Link href="/candidate/messages" className="text-gray-600 hover:text-gray-900 relative">
                     Messages
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-2 -right-4 bg-red-500 text-white text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 )}
                 {user?.userType === UserType.Company && (
@@ -115,9 +141,14 @@ export default function Header() {
                   <Link
                     href="/candidate/messages"
                     onClick={closeMobileMenu}
-                    className="block px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    className="flex items-center justify-between px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   >
                     Messages
+                    {unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 )}
                 {user?.userType === UserType.Company && (

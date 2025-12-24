@@ -253,6 +253,22 @@ export interface ShortlistDetail extends ShortlistRequest {
   chain?: ShortlistChainItem[];
 }
 
+// Send message types
+export interface SendMessageRequest {
+  subject?: string;
+  content: string;
+}
+
+export interface SendMessageResponse {
+  id: string;
+  toCandidateId: string;
+  toCandidateName: string;
+  subject: string;
+  content: string;
+  createdAt: string;
+  messagesRemaining: number;
+}
+
 // Notification types
 export interface Notification {
   id: string;

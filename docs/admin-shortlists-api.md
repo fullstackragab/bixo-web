@@ -6,27 +6,39 @@
 GET /admin/shortlists/{id}
 ```
 
-### Current Response Format (from backend)
+### Required Response Format
 
 ```json
 {
+  "success": true,
   "data": {
     "id": "guid",
     "companyId": "guid",
     "companyName": "string",
     "roleTitle": "string",
-    "techStackRequired": "json string",
+    "techStackRequired": ["React", "Node.js"],
     "seniorityRequired": "junior|mid|senior|lead|principal",
     "locationPreference": "string",
-    "locationCountry": "string",
-    "locationCity": "string",
-    "locationTimezone": "string",
-    "isRemote": true,
+    "hiringLocation": {
+      "isRemote": true,
+      "country": "string",
+      "city": "string",
+      "timezone": "string",
+      "displayText": "Remote"
+    },
+    "remoteAllowed": true,
     "additionalNotes": "string",
     "status": "pending|processing|completed|cancelled",
     "pricePaid": 0.00,
     "createdAt": "2024-01-01T00:00:00Z",
     "completedAt": "2024-01-01T00:00:00Z",
+    "candidatesCount": 10,
+    "previousRequestId": "guid|null",
+    "pricingType": "new|follow_up|free_regen",
+    "followUpDiscount": 0.00,
+    "newCandidatesCount": 8,
+    "repeatedCandidatesCount": 2,
+    "isFollowUp": false,
     "candidates": [
       {
         "id": "guid",
@@ -36,64 +48,137 @@ GET /admin/shortlists/{id}
         "email": "string",
         "desiredRole": "string",
         "seniorityEstimate": "senior",
+        "availability": 0,
         "rank": 1,
         "matchScore": 85,
         "matchReason": "string",
-        "adminApproved": true,
-        "isNew": true
+        "adminApproved": false,
+        "skills": ["React", "TypeScript", "Node.js"],
+        "isNew": true,
+        "previouslyRecommendedIn": "guid|null",
+        "reInclusionReason": "string|null",
+        "statusLabel": "New"
+      }
+    ],
+    "chain": [
+      {
+        "id": "guid",
+        "roleTitle": "string",
+        "createdAt": "2024-01-01T00:00:00Z",
+        "candidatesCount": 5
       }
     ]
   }
 }
 ```
 
-### Missing Fields (Frontend Expects These)
+---
 
-The frontend can handle these missing fields gracefully, but for full functionality these should be added:
+## Required Changes from Current Backend Response
 
-#### For Shortlist Object
+The following changes are needed for the frontend to display candidates correctly:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `remoteAllowed` | boolean | Alternative to `isRemote` (frontend handles both) |
-| `previousRequestId` | string \| null | ID of the previous shortlist if this is a follow-up |
-| `pricingType` | string | One of: `'new'`, `'follow_up'`, `'free_regen'` |
-| `followUpDiscount` | number | Discount percentage for follow-up requests |
-| `isFollowUp` | boolean | Whether this is a follow-up to a previous request |
-| `newCandidatesCount` | number | Count of new candidates (not in previous requests) |
-| `repeatedCandidatesCount` | number | Count of repeated candidates |
-| `chain` | array | Array of related shortlists in the chain |
+### 1. Rename `topSkills` to `skills`
 
-#### Chain Item Object (for versioning/follow-ups)
-
-```json
-{
-  "id": "guid",
-  "roleTitle": "string",
-  "createdAt": "2024-01-01T00:00:00Z",
-  "candidatesCount": 5
-}
+```diff
+- "topSkills": ["React", "Node.js"]
++ "skills": ["React", "Node.js"]
 ```
 
-#### For Candidate Object
+### 2. Change `availability` from string to number
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `skills` | string[] | Array of skill names |
-| `availability` | number | Enum: `0` = Open, `1` = NotNow, `2` = Passive |
-| `previouslyRecommendedIn` | string \| null | ID of previous shortlist where candidate was recommended |
-| `reInclusionReason` | string \| null | Reason for re-including a repeated candidate |
-| `statusLabel` | string \| null | Custom label like "New" or "Repeated" |
+```diff
+- "availability": "immediate|twoWeeks|oneMonth|flexible"
++ "availability": 0
+```
+
+**Mapping:**
+| Current String | New Number | Frontend Display |
+|----------------|------------|------------------|
+| `"immediate"` | `0` | "Open" |
+| `"twoWeeks"` | `0` | "Open" |
+| `"oneMonth"` | `1` | "Passive" |
+| `"flexible"` | `1` | "Passive" |
+
+Or use this mapping if preferred:
+- `0` = Open (actively looking)
+- `1` = Passive (open to opportunities)
+- `2` = NotNow (not currently looking)
+
+### 3. Add `email` field to candidates
+
+```diff
+  {
+    "candidateId": "guid",
+    "firstName": "string",
+    "lastName": "string",
++   "email": "string",
+    ...
+  }
+```
+
+The email is displayed when firstName/lastName are missing.
+
+### 4. Add `adminApproved` field to candidates
+
+```diff
+  {
+    "candidateId": "guid",
+    ...
+    "rank": 1,
++   "adminApproved": false,
+    ...
+  }
+```
+
+This boolean tracks whether an admin has approved the candidate for the shortlist. Default to `false` for new candidates.
 
 ---
 
-## Endpoint: Update Candidate Rankings
+## Complete Candidate Object Schema
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Shortlist candidate record ID |
+| `candidateId` | string | **Yes** | Candidate's unique ID (used for updates) |
+| `firstName` | string \| null | No | First name |
+| `lastName` | string \| null | No | Last name |
+| `email` | string | **Yes** | Candidate email (displayed if name missing) |
+| `desiredRole` | string \| null | No | Candidate's desired role |
+| `seniorityEstimate` | string | No | `"junior"`, `"mid"`, `"senior"`, `"lead"`, `"principal"` |
+| `skills` | string[] | **Yes** | Array of skills (use `[]` if empty, NOT null) |
+| `matchScore` | number | **Yes** | Match percentage (0-100) |
+| `matchReason` | string \| null | No | Explanation of match |
+| `rank` | number | **Yes** | Ranking position |
+| `availability` | number | **Yes** | `0` = Open, `1` = Passive, `2` = NotNow |
+| `adminApproved` | boolean | **Yes** | Whether admin approved this candidate |
+| `isNew` | boolean | No | True if new in this shortlist |
+| `previouslyRecommendedIn` | string \| null | No | Previous shortlist ID (if repeated) |
+| `reInclusionReason` | string \| null | No | Reason for re-inclusion |
+| `statusLabel` | string \| null | No | Display label ("New" or "Previously recommended") |
+
+---
+
+## Summary of Changes
+
+| Field | Current | Required |
+|-------|---------|----------|
+| `topSkills` | `string[]` | Rename to `skills` |
+| `availability` | `string` enum | Change to `number` (0, 1, 2) |
+| `email` | missing | Add field |
+| `adminApproved` | missing | Add field (boolean, default: false) |
+
+---
+
+## Other Endpoints
+
+### Update Candidate Rankings
 
 ```
 PUT /admin/shortlists/{id}/rankings
 ```
 
-### Request Body
+#### Request Body
 
 ```json
 {
@@ -107,7 +192,7 @@ PUT /admin/shortlists/{id}/rankings
 }
 ```
 
-### Response
+#### Response
 
 ```json
 {
@@ -117,13 +202,13 @@ PUT /admin/shortlists/{id}/rankings
 
 ---
 
-## Endpoint: Update Shortlist Status
+### Update Shortlist Status
 
 ```
 PUT /admin/shortlists/{id}/status
 ```
 
-### Request Body
+#### Request Body
 
 ```json
 {
@@ -133,7 +218,7 @@ PUT /admin/shortlists/{id}/status
 
 Valid status values: `"pending"`, `"processing"`, `"completed"`, `"cancelled"`
 
-### Response
+#### Response
 
 ```json
 {
@@ -143,7 +228,7 @@ Valid status values: `"pending"`, `"processing"`, `"completed"`, `"cancelled"`
 
 ---
 
-## Endpoint: Deliver Shortlist
+### Deliver Shortlist
 
 ```
 POST /admin/shortlists/{id}/deliver
@@ -151,11 +236,7 @@ POST /admin/shortlists/{id}/deliver
 
 Marks the shortlist as completed and notifies the company.
 
-### Request Body
-
-None required.
-
-### Response
+#### Response
 
 ```json
 {
@@ -165,7 +246,7 @@ None required.
 
 ---
 
-## Endpoint: Run Matching Algorithm
+### Run Matching Algorithm
 
 ```
 POST /admin/shortlists/{id}/match
@@ -173,11 +254,7 @@ POST /admin/shortlists/{id}/match
 
 Runs the matching algorithm to find candidates for this shortlist.
 
-### Request Body
-
-None required.
-
-### Response
+#### Response
 
 ```json
 {
@@ -185,22 +262,55 @@ None required.
 }
 ```
 
-After this call, the frontend will reload the shortlist to get the updated candidates.
-
 ---
 
-## Notes for Backend
+### Send Message to Candidate
 
-1. **techStackRequired**: Currently returned as a JSON string. The frontend now parses this, but returning it as an actual array would be cleaner.
+```
+POST /api/admin/shortlists/{id}/message
+```
 
-2. **seniorityRequired/seniorityEstimate**: Currently returned as strings (`"junior"`, `"senior"`, etc.). The frontend now handles both string and numeric formats.
+Sends a message to a candidate in the shortlist.
 
-3. **status**: Must be returned as a lowercase string (`"pending"`, `"processing"`, `"completed"`, `"cancelled"`). The frontend normalizes this but prefers lowercase strings.
+#### Request Body
 
-4. **isRemote vs remoteAllowed**: The frontend checks for both field names. Recommend using `remoteAllowed` for consistency with the interface.
+```json
+{
+  "candidateId": "guid",
+  "subject": "string (optional)",
+  "content": "string"
+}
+```
 
-5. **skills array**: Important for displaying candidate skills. If not available, the frontend shows nothing.
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `candidateId` | string | Yes | The candidate's unique ID |
+| `subject` | string | No | Email subject line (optional) |
+| `content` | string | Yes | Message body content |
 
-6. **availability**: Important for showing availability badge. If not provided, defaults to "Open" (0).
+#### Response
 
-7. **Response wrapping**: The response uses `data` wrapper which is handled correctly by the API client.
+```json
+{
+  "success": true,
+  "data": {
+    "id": "guid",
+    "fromCompanyName": "Acme Corp",
+    "toCandidateId": "guid",
+    "toCandidateName": "John Doe",
+    "subject": "Message from Acme Corp",
+    "content": "Hello...",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  "message": "Message sent"
+}
+```
+
+#### Error Response
+
+```json
+{
+  "success": false,
+  "error": "Candidate not found in shortlist"
+}
+```

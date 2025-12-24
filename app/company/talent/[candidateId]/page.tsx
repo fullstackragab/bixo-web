@@ -8,6 +8,7 @@ import Header from "@/components/layout/Header";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import SendMessageModal from "@/components/SendMessageModal";
 import api from "@/lib/api";
 import { SeniorityLevel, Availability, RemotePreference } from "@/types";
 
@@ -34,6 +35,7 @@ export default function CandidateProfilePage() {
   const [candidate, setCandidate] = useState<CandidateDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && candidateId) {
@@ -241,11 +243,20 @@ export default function CandidateProfilePage() {
             </Card>
 
             <Card>
-              <Button className="w-full">Send Message</Button>
+              <Button className="w-full" onClick={() => setShowMessageModal(true)}>
+                Send Message
+              </Button>
             </Card>
           </div>
         </div>
       </main>
+
+      <SendMessageModal
+        candidateId={candidateId}
+        candidateName={displayName}
+        isOpen={showMessageModal}
+        onClose={() => setShowMessageModal(false)}
+      />
     </div>
   );
 }
