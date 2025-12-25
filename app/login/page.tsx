@@ -1,35 +1,35 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
-import PageContainer, { PageWrapper } from '@/components/layout/PageContainer';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
+import { useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
+import PageContainer, { PageWrapper } from "@/components/layout/PageContainer";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import Card from "@/components/ui/Card";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     const result = await login(email, password);
     if (!result.success) {
-      setError(result.error || 'Login failed');
+      setError(result.error || "Login failed");
     }
     setIsLoading(false);
   };
 
   return (
     <PageWrapper className="flex items-center justify-center py-12">
-      <PageContainer variant="full" className="max-w-2xl space-y-8">
+      <PageContainer variant="default" className="max-w-3xl space-y-8">
         <div className="text-center">
           <Link href="/" className="text-3xl font-bold text-blue-600">
             Bixo
@@ -38,15 +38,18 @@ export default function LoginPage() {
             Sign in to your account
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Or{' '}
-            <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
+            Or{" "}
+            <Link
+              href="/register"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               create a new account
             </Link>
           </p>
         </div>
 
-        <Card>
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <Card padding="lg">
+          <form onSubmit={handleSubmit} className="space-y-6 min-w-sm">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
