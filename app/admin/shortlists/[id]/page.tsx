@@ -339,6 +339,8 @@ export default function ShortlistDetailPage() {
         return <Badge variant="warning">Awaiting Company Approval</Badge>;
       case 'pricingapproved':
         return <Badge variant="success">Approved</Badge>;
+      case 'authorized':
+        return <Badge variant="success">Ready to Deliver</Badge>;
       case 'delivered':
         return <Badge variant="success">Delivered</Badge>;
       case 'paymentcaptured':
@@ -390,17 +392,17 @@ export default function ShortlistDetailPage() {
     }
   };
 
-  // Check if delivery is allowed (must have authorized payment status)
+  // Check if delivery is allowed
+  // Backend sets shortlist.status = 'authorized' only after payment authorization succeeds
+  // Frontend must treat shortlist.status as the single source of truth for delivery gating
   const canDeliver = (): boolean => {
     if (!shortlist) return false;
-    // Require payment to be authorized before delivery
-    return shortlist.paymentStatus === 'authorized';
+    return shortlist.status.toLowerCase() === 'authorized';
   };
 
   const getDeliveryDisabledReason = (): string | null => {
     if (!shortlist) return null;
-    // Check payment authorization status
-    if (shortlist.paymentStatus !== 'authorized') {
+    if (shortlist.status.toLowerCase() !== 'authorized') {
       return 'Awaiting pricing approval and payment authorization.';
     }
     return null;
@@ -501,7 +503,7 @@ export default function ShortlistDetailPage() {
               Start Processing
             </Button>
           )}
-          {(['processing', 'matching', 'readyforpricing', 'pricingpending', 'pricingrequested', 'pricingapproved'].includes(shortlist.status.toLowerCase())) && (
+          {(['processing', 'matching', 'readyforpricing', 'pricingpending', 'pricingrequested', 'pricingapproved', 'authorized'].includes(shortlist.status.toLowerCase())) && (
             <>
               <Button variant="outline" onClick={saveChanges} isLoading={isSaving}>
                 Save Changes

@@ -207,6 +207,8 @@ function AdminShortlistsContent() {
         return <Badge variant="warning">Awaiting Approval</Badge>;
       case "pricingapproved":
         return <Badge variant="success">Approved</Badge>;
+      case "authorized":
+        return <Badge variant="success">Ready to Deliver</Badge>;
       case "completed":
       case "delivered":
         return <Badge variant="success">Delivered</Badge>;

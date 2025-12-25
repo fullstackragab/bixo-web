@@ -284,6 +284,8 @@ export default function CompanyShortlistDetailPage() {
         return <Badge variant="warning">Awaiting Your Approval</Badge>;
       case 'pricingapproved':
         return <Badge variant="primary">Being Curated</Badge>;
+      case 'authorized':
+        return <Badge variant="primary">Being Prepared</Badge>;
       case 'delivered':
         return <Badge variant="success">Delivered</Badge>;
       case 'paymentcaptured':
@@ -305,7 +307,7 @@ export default function CompanyShortlistDetailPage() {
 
   const isStatusPendingOrProcessing = (status: string) => {
     const normalized = normalizeStatus(status);
-    return ['draft', 'matching', 'readyforpricing', 'pricingapproved'].includes(normalized);
+    return ['draft', 'matching', 'readyforpricing', 'pricingapproved', 'authorized'].includes(normalized);
   };
 
   const getSeniorityLabel = (seniority: string | null) => {
