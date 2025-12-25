@@ -42,7 +42,7 @@ export default function RegisterPage() {
 
   return (
     <PageWrapper className="flex items-center justify-center py-12">
-      <PageContainer variant="narrow" className="space-y-8">
+      <PageContainer variant="full" className="max-w-2xl space-y-8">
         <div className="text-center">
           <Link href="/" className="text-3xl font-bold text-blue-600">
             Bixo
