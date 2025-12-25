@@ -205,15 +205,14 @@ function AdminShortlistsContent() {
       case "pricingpending":
       case "pricingrequested":
         return <Badge variant="warning">Awaiting Approval</Badge>;
+      case "approved":
       case "pricingapproved":
         return <Badge variant="success">Approved</Badge>;
-      case "authorized":
-        return <Badge variant="success">Ready to Deliver</Badge>;
-      case "completed":
       case "delivered":
-        return <Badge variant="success">Delivered</Badge>;
-      case "paymentcaptured":
-        return <Badge variant="success">Complete</Badge>;
+        return <Badge variant="warning">Delivered (Unpaid)</Badge>;
+      case "paid":
+      case "completed":
+        return <Badge variant="success">Paid</Badge>;
       case "cancelled":
         return <Badge variant="danger">Cancelled</Badge>;
       default:

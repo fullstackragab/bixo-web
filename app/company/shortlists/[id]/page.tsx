@@ -16,8 +16,6 @@ import {
   ShortlistOutcome,
   PaymentPricingType,
   ScopeApprovalStatus,
-  PaymentProvider,
-  PaymentAuthorizationResponse,
   ShortlistStatusString,
   PaymentStatus
 } from '@/types';
@@ -101,12 +99,8 @@ export default function CompanyShortlistDetailPage() {
   const [isApproving, setIsApproving] = useState(false);
   const [isDeclining, setIsDeclining] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
-  // Two-step flow state
-  // Step 1: Pricing approval (no payment input)
+  // Pricing approval state
   const [pricingConsentChecked, setPricingConsentChecked] = useState(false);
-  // Step 2: Payment authorization (after pricing approved)
-  const [selectedProvider, setSelectedProvider] = useState<PaymentProvider>('stripe');
-  const [paymentAuthorizationPending, setPaymentAuthorizationPending] = useState(false);
 
   const handleRequestMore = () => {
     if (!shortlist) return;
@@ -174,51 +168,6 @@ export default function CompanyShortlistDetailPage() {
     }
   };
 
-  // Step 2: Authorize payment (after pricing approved)
-  const handleAuthorizePayment = async () => {
-    setPaymentAuthorizationPending(true);
-    setApprovalError(null);
-
-    try {
-      const res = await api.post<PaymentAuthorizationResponse>(`/shortlists/${shortlistId}/payment/authorize`, {
-        provider: selectedProvider
-      });
-
-      if (res.success && res.data) {
-        const authResponse = res.data;
-
-        // Handle different payment providers
-        if (selectedProvider === 'stripe' && authResponse.clientSecret) {
-          // For Stripe, confirm the payment authorization
-          const confirmRes = await api.post(`/shortlists/${shortlistId}/payment/confirm`, {
-            providerReference: authResponse.providerReference
-          });
-          if (confirmRes.success) {
-            await loadShortlist();
-          } else {
-            setApprovalError(confirmRes.error || 'Authorization failed. Please try again.');
-          }
-        } else if (selectedProvider === 'paypal' && authResponse.approvalUrl) {
-          // For PayPal, redirect to approval URL
-          window.location.href = authResponse.approvalUrl;
-          return;
-        } else if (selectedProvider === 'usdc' && authResponse.escrowAddress) {
-          // For USDC, system will auto-confirm when transfer is detected
-          await loadShortlist();
-        } else {
-          // Direct authorization
-          await loadShortlist();
-        }
-      } else {
-        setApprovalError(res.error || 'Unable to authorize. Please try again.');
-      }
-    } catch {
-      setApprovalError('An error occurred. Please try again.');
-    } finally {
-      setPaymentAuthorizationPending(false);
-    }
-  };
-
   const handleDeclineScope = async () => {
     setIsDeclining(true);
     setApprovalError(null);
@@ -237,7 +186,7 @@ export default function CompanyShortlistDetailPage() {
     }
   };
 
-  // Check if pricing approval is pending (Step 1)
+  // Check if pricing approval is pending
   // Show approval card when admin has proposed pricing
   const isPricingPending =
     shortlist?.scopeApprovalStatus === 'pending' ||
@@ -245,15 +194,7 @@ export default function CompanyShortlistDetailPage() {
     shortlist?.status?.toLowerCase() === 'pricingrequested' ||
     shortlist?.status?.toLowerCase() === 'pricingpending';
 
-  // Check if payment authorization is needed (Step 2 - after pricing approved)
-  const isPaymentAuthorizationNeeded =
-    (shortlist?.scopeApprovalStatus === 'approved' || shortlist?.pricingApprovalStatus === 'approved') &&
-    shortlist?.paymentStatus !== 'authorized' &&
-    shortlist?.status !== 'delivered' &&
-    shortlist?.status !== 'paymentCaptured';
-
-  // Combined check for any pending approval step
-  const isAnyApprovalPending = isPricingPending || isPaymentAuthorizationNeeded;
+  // No payment authorization step - billing is handled manually after delivery
 
   // Normalize status to handle both old and new values
   const normalizeStatus = (status: string): string => {
@@ -279,16 +220,15 @@ export default function CompanyShortlistDetailPage() {
       case 'readyforpricing':
         return <Badge variant="warning">Ready for Pricing</Badge>;
       case 'pricingpending':
-        return <Badge variant="warning">Awaiting Your Approval</Badge>;
       case 'pricingrequested':
         return <Badge variant="warning">Awaiting Your Approval</Badge>;
+      case 'approved':
       case 'pricingapproved':
-        return <Badge variant="primary">Being Curated</Badge>;
-      case 'authorized':
         return <Badge variant="primary">Being Prepared</Badge>;
       case 'delivered':
         return <Badge variant="success">Delivered</Badge>;
-      case 'paymentcaptured':
+      case 'paid':
+      case 'completed':
         return <Badge variant="success">Complete</Badge>;
       case 'cancelled':
         return <Badge variant="danger">Cancelled</Badge>;
@@ -302,12 +242,12 @@ export default function CompanyShortlistDetailPage() {
 
   const isStatusDelivered = (status: string) => {
     const normalized = normalizeStatus(status);
-    return normalized === 'delivered' || normalized === 'paymentcaptured';
+    return ['delivered', 'paid', 'completed'].includes(normalized);
   };
 
   const isStatusPendingOrProcessing = (status: string) => {
     const normalized = normalizeStatus(status);
-    return ['draft', 'matching', 'readyforpricing', 'pricingapproved', 'authorized'].includes(normalized);
+    return ['draft', 'matching', 'readyforpricing', 'approved', 'pricingapproved'].includes(normalized);
   };
 
   const getSeniorityLabel = (seniority: string | null) => {
@@ -427,7 +367,7 @@ export default function CompanyShortlistDetailPage() {
                 </div>
               </div>
 
-              {/* Consent Checkbox - exact text from spec */}
+              {/* Consent Checkbox */}
               <div className="bg-white rounded-lg p-4 mb-6">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
@@ -437,7 +377,7 @@ export default function CompanyShortlistDetailPage() {
                     className="w-5 h-5 mt-0.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                   />
                   <span className="text-sm text-gray-700">
-                    By approving, you agree to be charged after the shortlist is delivered.
+                    By approving, you confirm interest in this shortlist. Billing will be coordinated separately.
                   </span>
                 </label>
               </div>
@@ -471,100 +411,17 @@ export default function CompanyShortlistDetailPage() {
           </Card>
         )}
 
-        {/* Step 2: Payment Authorization UI - shown after pricing approved */}
-        {isPaymentAuthorizationNeeded && (
-          <Card className="mb-6 border-2 border-green-200 bg-green-50">
-            <div className="max-w-xl mx-auto">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Authorize Payment</h2>
-                <p className="text-gray-600">
-                  We&apos;ll place a temporary authorization. You won&apos;t be charged unless the shortlist is delivered.
-                </p>
+        {/* Billing Note - shown when delivered but not yet paid */}
+        {isStatusDelivered(shortlist.status) && shortlist.paymentStatus !== 'captured' && (
+          <Card className="mb-6 bg-gray-50 border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
               </div>
-
-              {/* Amount Summary */}
-              <div className="bg-white rounded-lg p-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700 font-medium">Authorization Amount</span>
-                  <span className="font-bold text-xl text-gray-900">
-                    ${(shortlist.proposedPrice || shortlist.quotedPrice)?.toFixed(2) || '0.00'}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  This hold will be released if the shortlist is not delivered.
-                </p>
-              </div>
-
-              {/* Payment Method Selection */}
-              <div className="bg-white rounded-lg p-4 mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">Select Payment Method</label>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                    <input
-                      type="radio"
-                      name="provider"
-                      value="stripe"
-                      checked={selectedProvider === 'stripe'}
-                      onChange={() => setSelectedProvider('stripe')}
-                      className="w-4 h-4 text-green-600"
-                    />
-                    <span className="font-medium text-gray-900">Credit/Debit Card</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                    <input
-                      type="radio"
-                      name="provider"
-                      value="paypal"
-                      checked={selectedProvider === 'paypal'}
-                      onChange={() => setSelectedProvider('paypal')}
-                      className="w-4 h-4 text-green-600"
-                    />
-                    <span className="font-medium text-gray-900">PayPal</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                    <input
-                      type="radio"
-                      name="provider"
-                      value="usdc"
-                      checked={selectedProvider === 'usdc'}
-                      onChange={() => setSelectedProvider('usdc')}
-                      className="w-4 h-4 text-green-600"
-                    />
-                    <span className="font-medium text-gray-900">USDC (Solana)</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Error Message */}
-              {approvalError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
-                  {approvalError}
-                </div>
-              )}
-
-              {/* Processing State */}
-              {paymentAuthorizationPending && (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm mb-4 flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
-                  <span>Processing authorization...</span>
-                </div>
-              )}
-
-              {/* Action Button */}
-              <div className="flex justify-center">
-                <Button
-                  onClick={handleAuthorizePayment}
-                  disabled={paymentAuthorizationPending}
-                  isLoading={paymentAuthorizationPending}
-                  className="px-8"
-                >
-                  Authorize
-                </Button>
+              <div>
+                <p className="text-sm text-gray-600">Payment is handled after delivery.</p>
               </div>
             </div>
           </Card>
@@ -662,7 +519,7 @@ export default function CompanyShortlistDetailPage() {
           </h2>
 
           {/* Locked state when any approval is pending */}
-          {isAnyApprovalPending ? (
+          {isPricingPending ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -768,7 +625,7 @@ export default function CompanyShortlistDetailPage() {
         </Card>
 
         {/* Messaging Section - hidden when any approval is pending */}
-        {!isAnyApprovalPending && isStatusDelivered(shortlist.status) && shortlist.candidates.length > 0 && (
+        {!isPricingPending && isStatusDelivered(shortlist.status) && shortlist.candidates.length > 0 && (
           <Card className="mt-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Messages to Candidates</h2>

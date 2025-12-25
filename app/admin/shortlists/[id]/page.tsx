@@ -236,9 +236,23 @@ export default function ShortlistDetailPage() {
     setError(null);
     const res = await api.post(`/admin/shortlists/${shortlistId}/deliver`);
     if (res.success) {
-      setShortlist(prev => prev ? { ...prev, status: 'completed' } : null);
+      setShortlist(prev => prev ? { ...prev, status: 'delivered' } : null);
     } else {
       setError(res.error || 'Failed to deliver shortlist');
+    }
+  };
+
+  const markAsPaid = async () => {
+    if (!confirm('Mark this shortlist as paid? This confirms payment has been received.')) {
+      return;
+    }
+
+    setError(null);
+    const res = await api.post(`/admin/shortlists/${shortlistId}/mark-paid`);
+    if (res.success) {
+      setShortlist(prev => prev ? { ...prev, status: 'completed', paymentStatus: 'captured' } : null);
+    } else {
+      setError(res.error || 'Failed to mark as paid');
     }
   };
 
@@ -334,23 +348,20 @@ export default function ShortlistDetailPage() {
       case 'readyforpricing':
         return <Badge variant="warning">Ready for Pricing</Badge>;
       case 'pricingpending':
-        return <Badge variant="warning">Awaiting Company Approval</Badge>;
       case 'pricingrequested':
-        return <Badge variant="warning">Awaiting Company Approval</Badge>;
+        return <Badge variant="warning">Pricing Pending</Badge>;
+      case 'approved':
       case 'pricingapproved':
         return <Badge variant="success">Approved</Badge>;
-      case 'authorized':
-        return <Badge variant="success">Ready to Deliver</Badge>;
       case 'delivered':
-        return <Badge variant="success">Delivered</Badge>;
-      case 'paymentcaptured':
-        return <Badge variant="success">Complete</Badge>;
+        return <Badge variant="warning">Delivered (Unpaid)</Badge>;
+      case 'paid':
+      case 'completed':
+        return <Badge variant="success">Paid</Badge>;
       case 'pending':
         return <Badge variant="warning">Pending</Badge>;
       case 'processing':
         return <Badge variant="primary">Processing</Badge>;
-      case 'completed':
-        return <Badge variant="success">Delivered</Badge>;
       case 'cancelled':
         return <Badge variant="danger">Cancelled</Badge>;
       default:
@@ -392,20 +403,27 @@ export default function ShortlistDetailPage() {
     }
   };
 
-  // Check if delivery is allowed
-  // Backend sets shortlist.status = 'authorized' only after payment authorization succeeds
-  // Frontend must treat shortlist.status as the single source of truth for delivery gating
+  // Check if delivery is allowed - enabled when status is approved
   const canDeliver = (): boolean => {
     if (!shortlist) return false;
-    return shortlist.status.toLowerCase() === 'authorized';
+    const status = shortlist.status.toLowerCase();
+    return status === 'approved' || status === 'pricingapproved';
   };
 
   const getDeliveryDisabledReason = (): string | null => {
     if (!shortlist) return null;
-    if (shortlist.status.toLowerCase() !== 'authorized') {
-      return 'Awaiting pricing approval and payment authorization.';
+    const status = shortlist.status.toLowerCase();
+    if (status !== 'approved' && status !== 'pricingapproved') {
+      return 'Awaiting pricing approval from company.';
     }
     return null;
+  };
+
+  // Check if "Mark as Paid" is allowed - enabled after delivery
+  const canMarkAsPaid = (): boolean => {
+    if (!shortlist) return false;
+    const status = shortlist.status.toLowerCase();
+    return status === 'delivered' && shortlist.paymentStatus !== 'captured';
   };
 
   const getSeniorityLabel = (seniority: string | number | null | undefined) => {
@@ -503,7 +521,7 @@ export default function ShortlistDetailPage() {
               Start Processing
             </Button>
           )}
-          {(['processing', 'matching', 'readyforpricing', 'pricingpending', 'pricingrequested', 'pricingapproved', 'authorized'].includes(shortlist.status.toLowerCase())) && (
+          {(['processing', 'matching', 'readyforpricing', 'pricingpending', 'pricingrequested', 'pricingapproved', 'approved'].includes(shortlist.status.toLowerCase())) && (
             <>
               <Button variant="outline" onClick={saveChanges} isLoading={isSaving}>
                 Save Changes
@@ -534,6 +552,12 @@ export default function ShortlistDetailPage() {
                 )}
               </div>
             </>
+          )}
+          {/* Mark as Paid button - shown after delivery */}
+          {canMarkAsPaid() && (
+            <Button variant="primary" onClick={markAsPaid}>
+              Mark as Paid
+            </Button>
           )}
         </div>
       </div>
