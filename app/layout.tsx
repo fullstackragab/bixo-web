@@ -21,6 +21,9 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "Bixo - We help companies talk to the right people faster",
   description: "Job platform connecting tech talent with innovative companies through AI-powered matching and curated shortlists.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
