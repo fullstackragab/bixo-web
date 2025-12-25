@@ -62,6 +62,13 @@ export default function ShortlistOutcomeMessage({
   finalPrice,
   className = '',
 }: ShortlistOutcomeMessageProps) {
+  // Don't render if we have no outcome data to display
+  // This prevents showing incorrect "no_match" message for delivered shortlists
+  // that simply don't have outcome data populated yet
+  if (!outcome && !pricingType && finalPrice === undefined) {
+    return null;
+  }
+
   const resolvedOutcome = getOutcomeFromData(outcome, pricingType, finalPrice);
   const message = OUTCOME_MESSAGES[resolvedOutcome];
   const styles = OUTCOME_STYLES[resolvedOutcome];

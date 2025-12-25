@@ -144,8 +144,13 @@ export default function CompanyDashboard() {
   };
 
   const getShortlistStatusBadge = (status: string | number) => {
-    const normalized = normalizeStatus(status);
+    // Normalize: lowercase and remove underscores
+    const normalized = typeof status === 'number'
+      ? normalizeStatus(status)
+      : status.toLowerCase().replace(/_/g, '');
+
     switch (normalized) {
+      case 'draft':
       case 'pending':
         return (
           <Badge variant="warning" className="gap-1">
@@ -153,19 +158,51 @@ export default function CompanyDashboard() {
             Pending Review
           </Badge>
         );
+      case 'submitted':
+        return (
+          <Badge variant="primary" className="gap-1">
+            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+            Submitted
+          </Badge>
+        );
       case 'processing':
+      case 'matching':
         return (
           <Badge variant="primary" className="gap-1">
             <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
             Being Curated
           </Badge>
         );
-      case 'completed':
+      case 'readyforpricing':
+        return (
+          <Badge variant="primary" className="gap-1">
+            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+            Almost Ready
+          </Badge>
+        );
+      case 'pricingpending':
+      case 'pricingrequested':
+        return <Badge variant="warning">Awaiting Your Approval</Badge>;
+      case 'approved':
+      case 'pricingapproved':
+        return (
+          <Badge variant="primary" className="gap-1">
+            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+            Being Prepared
+          </Badge>
+        );
+      case 'delivered':
         return <Badge variant="success">Delivered</Badge>;
+      case 'paid':
+      case 'completed':
+        return <Badge variant="success">Complete</Badge>;
       case 'cancelled':
         return <Badge variant="default">Cancelled</Badge>;
       default:
-        return <Badge variant="default">{normalized}</Badge>;
+        // Format unknown status nicely
+        const displayStatus = normalized.replace(/([a-z])([A-Z])/g, '$1 $2')
+          .replace(/^./, str => str.toUpperCase());
+        return <Badge variant="default">{displayStatus}</Badge>;
     }
   };
 
