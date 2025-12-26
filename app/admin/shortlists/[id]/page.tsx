@@ -12,6 +12,8 @@ import {
   ScopeApprovalStatus,
   ShortlistStatusString,
   PaymentStatus,
+  ShortlistEmailEvent,
+  ShortlistEmailRecord,
 } from "@/types";
 import Input from "@/components/ui/Input";
 
@@ -81,6 +83,7 @@ interface ShortlistDetail {
   // Legacy
   pricingApprovalStatus?: ScopeApprovalStatus;
   quotedPrice?: number;
+  // Note: Email history is fetched separately via GET /admin/shortlists/{id}/emails
 }
 
 // Helper to normalize status to lowercase string
@@ -165,10 +168,30 @@ export default function ShortlistDetailPage() {
   const [selectedOutcome, setSelectedOutcome] = useState<string>("");
   const [outcomeReason, setOutcomeReason] = useState<string>("");
   const [isSettingOutcome, setIsSettingOutcome] = useState(false);
+  // Email state (fetched separately)
+  const [emailHistory, setEmailHistory] = useState<ShortlistEmailRecord[]>([]);
+  const [isLoadingEmails, setIsLoadingEmails] = useState(false);
+  const [isResendingEmail, setIsResendingEmail] = useState(false);
+  const [emailResendSuccess, setEmailResendSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     loadShortlist();
+    loadEmailHistory();
   }, [shortlistId]);
+
+  const loadEmailHistory = async () => {
+    setIsLoadingEmails(true);
+    try {
+      const res = await api.get<ShortlistEmailRecord[]>(`/admin/shortlists/${shortlistId}/emails`);
+      if (res.success && res.data) {
+        setEmailHistory(res.data);
+      }
+    } catch {
+      // Silent fail - emails are optional
+    } finally {
+      setIsLoadingEmails(false);
+    }
+  };
 
   const loadShortlist = async () => {
     setIsLoading(true);
@@ -230,6 +253,36 @@ export default function ShortlistDetailPage() {
     } else {
       setError(res.error || "Failed to update status");
     }
+  };
+
+  // Start processing and automatically run matching algorithm
+  const startProcessing = async () => {
+    setError(null);
+    setIsMatching(true);
+
+    // First update status to processing
+    const statusRes = await api.put(`/admin/shortlists/${shortlistId}/status`, {
+      status: "processing",
+    });
+
+    if (!statusRes.success) {
+      setError(statusRes.error || "Failed to start processing");
+      setIsMatching(false);
+      return;
+    }
+
+    // Then automatically run matching algorithm
+    const matchRes = await api.post(`/admin/shortlists/${shortlistId}/match`);
+
+    if (matchRes.success) {
+      await loadShortlist();
+    } else {
+      // Status updated but matching failed - still reload to show new status
+      await loadShortlist();
+      setError(matchRes.error || "Started processing but matching failed");
+    }
+
+    setIsMatching(false);
   };
 
   const deliverShortlist = async () => {
@@ -355,21 +408,17 @@ export default function ShortlistDetailPage() {
     }
   };
 
-  // Handle outcome selection (NoMatch, Partial, etc.)
+  // Handle marking shortlist as NoMatch (no suitable candidates)
   const handleSetOutcome = async () => {
-    if (!selectedOutcome) {
-      setError("Please select an outcome");
-      return;
-    }
-
-    if (selectedOutcome === "noMatch" && !outcomeReason.trim()) {
-      setError("Please provide an explanation for marking as NoMatch");
+    // This function is now specifically for NoMatch
+    if (!outcomeReason.trim()) {
+      setError("Please provide an explanation for marking as No Match");
       return;
     }
 
     if (
       !confirm(
-        "This action is irreversible. Once set, the outcome cannot be changed. Continue?"
+        "This will close the shortlist with no charge. This action is irreversible. Continue?"
       )
     ) {
       return;
@@ -379,10 +428,9 @@ export default function ShortlistDetailPage() {
     setError(null);
 
     try {
-      // Call backend endpoint to set outcome
-      const res = await api.post(`/admin/shortlists/${shortlistId}/outcome`, {
-        outcome: selectedOutcome,
-        reason: outcomeReason.trim() || undefined,
+      // Call backend endpoint to mark as no-match
+      const res = await api.post(`/admin/shortlists/${shortlistId}/no-match`, {
+        reason: outcomeReason.trim(),
       });
 
       if (res.success) {
@@ -391,7 +439,7 @@ export default function ShortlistDetailPage() {
         setOutcomeReason("");
         await loadShortlist();
       } else {
-        setError(res.error || "Failed to set outcome");
+        setError(res.error || "Failed to mark as No Match");
       }
     } catch {
       setError("An error occurred. Please try again.");
@@ -400,7 +448,51 @@ export default function ShortlistDetailPage() {
     }
   };
 
-  // Open scope modal with pre-filled values and save candidates in background
+  // Get the last email from history (sorted by sentAt DESC from backend)
+  const lastEmail = emailHistory.length > 0 ? emailHistory[0] : null;
+
+  // Resend the last email to the company
+  const handleResendEmail = async () => {
+    if (!lastEmail) {
+      setError("No email to resend");
+      return;
+    }
+
+    if (!confirm("Resend the last notification email to the company?")) {
+      return;
+    }
+
+    setIsResendingEmail(true);
+    setError(null);
+    setEmailResendSuccess(null);
+
+    try {
+      const res = await api.post(`/admin/shortlists/${shortlistId}/emails/resend`);
+      if (res.success) {
+        setEmailResendSuccess("Email resent successfully");
+        await loadEmailHistory();
+        // Clear success message after 3 seconds
+        setTimeout(() => setEmailResendSuccess(null), 3000);
+      } else {
+        setError(res.error || "Failed to resend email");
+      }
+    } catch {
+      setError("An error occurred. Please try again.");
+    } finally {
+      setIsResendingEmail(false);
+    }
+  };
+
+  // Get email event label for display (PascalCase values from backend)
+  const getEmailEventLabel = (emailEvent: ShortlistEmailEvent | string): string => {
+    const eventLabels: Record<string, string> = {
+      PricingReady: "Pricing Ready",
+      AuthorizationRequired: "Authorization Required",
+      Delivered: "Shortlist Delivered",
+      NoMatch: "No Suitable Candidates",
+    };
+    return eventLabels[emailEvent] || emailEvent;
+  };
 
   // Check if scope can be proposed
   const canProposeScope = (): boolean => {
@@ -690,7 +782,7 @@ export default function ShortlistDetailPage() {
           {(shortlist.status === "pending" ||
             shortlist.status === "draft" ||
             shortlist.status === "submitted") && (
-            <Button onClick={() => updateStatus("processing")}>
+            <Button onClick={startProcessing} isLoading={isMatching}>
               Start Processing
             </Button>
           )}
@@ -704,17 +796,17 @@ export default function ShortlistDetailPage() {
             "approved",
           ].includes(shortlist.status.toLowerCase()) && (
             <>
-              {/* Outcome selector button */}
+              {/* Mark as No Match button */}
               {canSetOutcome() && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setShowOutcomeModal(true);
-                    setSelectedOutcome("");
+                    setSelectedOutcome("noMatch");
                     setOutcomeReason("");
                   }}
                 >
-                  Set Outcome
+                  Mark as No Match
                 </Button>
               )}
               {canProposeScope() && !isScopeProposed() && (
@@ -894,6 +986,75 @@ export default function ShortlistDetailPage() {
             <p className="text-gray-700 mt-1">{shortlist.additionalNotes}</p>
           </div>
         )}
+      </Card>
+
+      {/* Email Notification History */}
+      <Card className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Email Notifications</h2>
+          {lastEmail && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResendEmail}
+              isLoading={isResendingEmail}
+              disabled={isResendingEmail}
+            >
+              Resend Last Email
+            </Button>
+          )}
+        </div>
+
+        {emailResendSuccess && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+            {emailResendSuccess}
+          </div>
+        )}
+
+        {isLoadingEmails ? (
+          <div className="flex items-center justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          </div>
+        ) : emailHistory.length > 0 ? (
+          <div className="space-y-2">
+            {emailHistory.map((email) => (
+              <div
+                key={email.id}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {getEmailEventLabel(email.emailEvent)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Sent to {email.sentTo}
+                      {email.isResend && " (manually resent)"}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-sm text-gray-500">
+                  {new Date(email.sentAt).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm py-4 text-center">
+            No emails sent yet
+          </p>
+        )}
+
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            Emails are sent automatically when status changes. You can resend the last email if the company missed it.
+          </p>
+        </div>
       </Card>
 
       {/* Matched Candidates */}
@@ -1261,158 +1422,67 @@ export default function ShortlistDetailPage() {
         </div>
       )}
 
-      {/* Outcome Selection Modal */}
+      {/* Mark as No Match Modal */}
       {showOutcomeModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Set Shortlist Outcome
+              Mark as No Suitable Candidates
             </h2>
             <p className="text-sm text-gray-600 mb-6">
-              Choose the outcome for this shortlist. This action is{" "}
-              <strong>irreversible</strong>.
+              This will close the shortlist without delivering any candidates.
+              The company will <strong>not be charged</strong>.
             </p>
 
             <div className="space-y-4">
-              {/* Outcome selector */}
+              {/* Reason textarea - required */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Outcome *
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Explanation *{" "}
+                  <span className="text-red-600">(Required)</span>
                 </label>
-                <div className="space-y-2">
-                  <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="outcome"
-                      value="delivered"
-                      checked={selectedOutcome === "delivered"}
-                      onChange={(e) => setSelectedOutcome(e.target.value)}
-                      className="mt-0.5"
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">Delivered</div>
-                      <div className="text-sm text-gray-500">
-                        Successfully delivered candidates to company
-                      </div>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="outcome"
-                      value="partial"
-                      checked={selectedOutcome === "partial"}
-                      onChange={(e) => setSelectedOutcome(e.target.value)}
-                      className="mt-0.5"
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">Partial</div>
-                      <div className="text-sm text-gray-500">
-                        Delivered fewer candidates than expected, adjusted
-                        pricing
-                      </div>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start gap-3 p-3 border-2 border-red-200 bg-red-50 rounded-lg cursor-pointer hover:bg-red-100">
-                    <input
-                      type="radio"
-                      name="outcome"
-                      value="noMatch"
-                      checked={selectedOutcome === "noMatch"}
-                      onChange={(e) => setSelectedOutcome(e.target.value)}
-                      className="mt-0.5"
-                    />
-                    <div>
-                      <div className="font-medium text-red-900">
-                        No Suitable Candidates
-                      </div>
-                      <div className="text-sm text-red-700">
-                        Cannot deliver quality candidates. Company will not be
-                        charged.
-                      </div>
-                    </div>
-                  </label>
-                </div>
+                <textarea
+                  value={outcomeReason}
+                  onChange={(e) => setOutcomeReason(e.target.value)}
+                  placeholder="Explain why no suitable candidates were found..."
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This will be shown to the company
+                </p>
               </div>
 
-              {/* Reason textarea - required for NoMatch */}
-              {selectedOutcome === "noMatch" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Explanation *{" "}
-                    <span className="text-red-600">(Required for NoMatch)</span>
-                  </label>
-                  <textarea
-                    value={outcomeReason}
-                    onChange={(e) => setOutcomeReason(e.target.value)}
-                    placeholder="Explain why no suitable candidates were found..."
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    This will be shown to the company
-                  </p>
-                </div>
-              )}
-
-              {selectedOutcome && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Additional Notes (optional)
-                  </label>
-                  <textarea
-                    value={outcomeReason}
-                    onChange={(e) => setOutcomeReason(e.target.value)}
-                    placeholder="Optional explanation or context..."
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              )}
-
-              {/* Warning for NoMatch */}
-              {selectedOutcome === "noMatch" && (
-                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <svg
-                      className="w-6 h-6 text-amber-600 shrink-0 mt-0.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
-                    <div className="text-sm">
-                      <p className="font-semibold text-amber-900 mb-1">
-                        This will:
-                      </p>
-                      <ul className="list-disc list-inside text-amber-800 space-y-1">
-                        <li>Close the shortlist with no charge to company</li>
-                        <li>Permanently disable delivery for this shortlist</li>
-                        <li>Notify the company with your explanation</li>
-                        <li>Cannot be undone</li>
-                      </ul>
-                    </div>
+              {/* Warning */}
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="w-6 h-6 text-amber-600 shrink-0 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <div className="text-sm">
+                    <p className="font-semibold text-amber-900 mb-1">
+                      This will:
+                    </p>
+                    <ul className="list-disc list-inside text-amber-800 space-y-1">
+                      <li>Close the shortlist with no charge to company</li>
+                      <li>Permanently disable delivery for this shortlist</li>
+                      <li>Notify the company with your explanation</li>
+                      <li>Cannot be undone</li>
+                    </ul>
                   </div>
                 </div>
-              )}
-
-              {/* General irreversible warning */}
-              {selectedOutcome && selectedOutcome !== "noMatch" && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-800">
-                    ⚠️ Once set, the outcome cannot be changed.
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -1431,13 +1501,10 @@ export default function ShortlistDetailPage() {
               <Button
                 onClick={handleSetOutcome}
                 isLoading={isSettingOutcome}
-                disabled={
-                  !selectedOutcome ||
-                  (selectedOutcome === "noMatch" && !outcomeReason.trim())
-                }
+                disabled={!outcomeReason.trim()}
                 className="flex-1"
               >
-                Confirm Outcome
+                Confirm No Match
               </Button>
             </div>
           </div>

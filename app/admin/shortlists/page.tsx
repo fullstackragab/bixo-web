@@ -188,6 +188,31 @@ function AdminShortlistsContent() {
     }
   };
 
+  // Start processing and automatically run matching algorithm
+  const startProcessing = async (shortlistId: string) => {
+    try {
+      // First update status to processing
+      const statusRes = await api.put(`/admin/shortlists/${shortlistId}/status`, {
+        status: "processing",
+      });
+
+      if (!statusRes.success) {
+        setError(statusRes.error || "Failed to start processing");
+        return;
+      }
+
+      // Update local state immediately
+      setShortlists((prev) =>
+        prev.map((s) => (s.id === shortlistId ? { ...s, status: "processing" } : s))
+      );
+
+      // Then run matching algorithm in background
+      await api.post(`/admin/shortlists/${shortlistId}/match`);
+    } catch {
+      setError("Failed to start processing");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const s = status.toLowerCase().replace(/_/g, '');
     switch (s) {
@@ -439,18 +464,9 @@ function AdminShortlistsContent() {
                           <Button
                             variant="primary"
                             size="sm"
-                            onClick={() => updateStatus(shortlist.id, "processing")}
+                            onClick={() => startProcessing(shortlist.id)}
                           >
                             Start
-                          </Button>
-                        )}
-                        {shortlist.status.toLowerCase() === "processing" && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => updateStatus(shortlist.id, "completed")}
-                          >
-                            Complete
                           </Button>
                         )}
                       </div>
@@ -564,18 +580,9 @@ function AdminShortlistsContent() {
                               <Button
                                 variant="primary"
                                 size="sm"
-                                onClick={() => updateStatus(shortlist.id, "processing")}
+                                onClick={() => startProcessing(shortlist.id)}
                               >
                                 Start
-                              </Button>
-                            )}
-                            {status === "processing" && (
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => updateStatus(shortlist.id, "completed")}
-                              >
-                                Done
                               </Button>
                             )}
                             {!isActionable && (

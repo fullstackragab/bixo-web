@@ -117,6 +117,24 @@ export type ShortlistOutcomeString =
   | "noMatch"
   | "cancelled";
 
+// Email event types for shortlist notifications (PascalCase to match backend)
+export enum ShortlistEmailEvent {
+  PricingReady = "PricingReady",
+  AuthorizationRequired = "AuthorizationRequired",
+  Delivered = "Delivered",
+  NoMatch = "NoMatch",
+}
+
+// Email event record (backend-driven, read-only)
+export interface ShortlistEmailRecord {
+  id: string;
+  emailEvent: ShortlistEmailEvent | string; // "PricingReady" | "AuthorizationRequired" | "Delivered" | "NoMatch"
+  sentAt: string; // ISO datetime
+  sentTo: string; // Email address
+  sentBy: string | null; // Admin user ID if manually resent
+  isResend: boolean; // true if admin manually resent
+}
+
 export type PaymentPricingType = "full" | "partial" | "free";
 
 // Scope/Pricing approval status (read-only, backend-driven)
@@ -323,6 +341,7 @@ export interface ShortlistRequest {
   pricingApprovalStatus?: PricingApprovalStatus;
   quotedPrice?: number;
   approvedCandidatesCount?: number;
+  // Note: Email history is fetched separately via GET /admin/shortlists/{id}/emails
 }
 
 export interface ShortlistCandidate {

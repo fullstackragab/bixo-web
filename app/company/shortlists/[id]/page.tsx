@@ -189,10 +189,13 @@ export default function CompanyShortlistDetailPage() {
   };
 
   // Check if this shortlist has NoMatch outcome
-  const isNoMatch = shortlist?.shortlistOutcome === 'noMatch' || 
-                    shortlist?.shortlistOutcome === 'no_match' ||
-                    (typeof shortlist?.shortlistOutcome === 'string' && 
-                     shortlist.shortlistOutcome.toLowerCase() === 'nomatch');
+  // Handle various formats from backend: noMatch, no_match, NoMatch
+  const isNoMatch = (() => {
+    const outcome = shortlist?.shortlistOutcome;
+    if (!outcome) return false;
+    const normalized = String(outcome).toLowerCase().replace(/_/g, '');
+    return normalized === 'nomatch';
+  })();
 
   // Check if pricing approval is pending (but NOT if NoMatch)
   // Don't show approval card for NoMatch outcomes
@@ -200,7 +203,8 @@ export default function CompanyShortlistDetailPage() {
     shortlist?.scopeApprovalStatus === 'pending' ||
     shortlist?.pricingApprovalStatus === 'pending' ||
     shortlist?.status?.toLowerCase() === 'pricingrequested' ||
-    shortlist?.status?.toLowerCase() === 'pricingpending';
+    shortlist?.status?.toLowerCase() === 'pricingpending'
+  );
 
   // No payment authorization step - billing is handled manually after delivery
 
@@ -312,7 +316,7 @@ export default function CompanyShortlistDetailPage() {
         <div className="flex items-start justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{shortlist.roleTitle}</h1>
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
               {getStatusBadge(shortlist.status)}
               {shortlist.isFollowUp && (
                 <Badge variant="primary">
@@ -358,19 +362,25 @@ export default function CompanyShortlistDetailPage() {
               
               {/* Next-step options */}
               <div className="mt-6 space-y-3">
-                <p className="text-sm font-medium text-gray-700 mb-2">Next Steps:</p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button 
-                    variant="outline" 
+                <p className="text-sm font-medium text-gray-700 mb-2">What would you like to do next?</p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
+                  <Button
+                    variant="outline"
                     onClick={() => router.push(`/company/shortlists?adjustRole=${shortlist.id}`)}
                   >
                     Adjust Role Requirements
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline"
-                    onClick={() => router.push('/company/support')}
+                    onClick={() => router.push(`/company/shortlists?extendSearch=${shortlist.id}`)}
                   >
-                    Contact Support
+                    Extend Search Window
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/company/shortlists')}
+                  >
+                    Close Request
                   </Button>
                 </div>
               </div>
@@ -378,7 +388,7 @@ export default function CompanyShortlistDetailPage() {
           </Card>
         )}
 
-        {/* Step 1: Pricing Approval Screen - shown when pricing is pending (NOT for NoMatch) (NOT for NoMatch) */}
+        {/* Step 1: Pricing Approval Screen - shown when pricing is pending (NOT for NoMatch) */}
         {isPricingPending && !isNoMatch && (
           <Card className="mb-6 border-2 border-blue-200 bg-blue-50">
             <div className="max-w-xl mx-auto">
@@ -493,8 +503,8 @@ export default function CompanyShortlistDetailPage() {
           />
         )}
 
-        {/* Pricing Breakdown for Follow-ups */}
-        {shortlist.isFollowUp && shortlist.pricePaid !== undefined && (
+        {/* Pricing Breakdown for Follow-ups - NOT shown for NoMatch */}
+        {!isNoMatch && shortlist.isFollowUp && shortlist.pricePaid !== undefined && shortlist.pricePaid > 0 && (
           <Card className="mb-6 bg-green-50 border-green-200">
             <h2 className="text-lg font-semibold text-green-800 mb-3">Follow-up Pricing</h2>
             <div className="flex items-center gap-6">

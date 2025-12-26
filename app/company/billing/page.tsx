@@ -39,13 +39,15 @@ interface BillingHistoryItem {
 
 function getStatusLabel(status: string | number, outcome?: ShortlistOutcome): string {
   const normalized = normalizeStatus(status);
-  if (normalized === 'completed') {
-    switch (outcome) {
-      case 'fulfilled':
+  if (normalized === 'completed' || normalized === 'delivered') {
+    // Normalize outcome to handle various formats from backend
+    const outcomeStr = outcome?.toString().toLowerCase().replace(/_/g, '');
+    switch (outcomeStr) {
+      case 'delivered':
         return 'Delivered';
       case 'partial':
         return 'Partial Match';
-      case 'no_match':
+      case 'nomatch':
         return 'No Match';
       default:
         return 'Delivered';
@@ -65,13 +67,15 @@ function getStatusLabel(status: string | number, outcome?: ShortlistOutcome): st
 
 function getStatusBadgeVariant(status: string | number, outcome?: ShortlistOutcome): 'default' | 'primary' | 'success' | 'warning' | 'danger' {
   const normalized = normalizeStatus(status);
-  if (normalized === 'completed') {
-    switch (outcome) {
-      case 'fulfilled':
+  if (normalized === 'completed' || normalized === 'delivered') {
+    // Normalize outcome to handle various formats from backend
+    const outcomeStr = outcome?.toString().toLowerCase().replace(/_/g, '');
+    switch (outcomeStr) {
+      case 'delivered':
         return 'success';
       case 'partial':
         return 'warning';
-      case 'no_match':
+      case 'nomatch':
         return 'default';
       default:
         return 'success';
