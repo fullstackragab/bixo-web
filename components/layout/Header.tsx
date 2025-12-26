@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserType } from '@/types';
 import api from '@/lib/api';
@@ -54,7 +55,13 @@ export default function Header() {
             href={isAuthenticated ? getDashboardLink() : '/'}
             className="hover:opacity-70 transition-opacity"
           >
-            <span className="text-xl text-foreground font-medium">Bixo</span>
+            <Image
+              src="/logo+name.png"
+              alt="Bixo"
+              width={80}
+              height={32}
+              priority
+            />
           </Link>
 
           {/* Desktop Navigation */}

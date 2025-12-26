@@ -19,10 +19,11 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "Bixo - We help companies talk to the right people faster",
-  description: "Job platform connecting tech talent with innovative companies through AI-powered matching and curated shortlists.",
+  title: "Bixo - Human-curated recruitment",
+  description: "No job boards. No applications. No spam. We connect companies with pre-vetted candidates through curated shortlists.",
   icons: {
     icon: "/favicon.png",
+    apple: "/favicon.png",
   },
 };
 
@@ -34,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} antialiased bg-gray-50`}
+        className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} antialiased`}
       >
         <AuthProvider>{children}</AuthProvider>
       </body>

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
   return (
@@ -74,7 +75,15 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-border">
+        <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <Link href="/" className="hover:opacity-70 transition-opacity">
+            <Image
+              src="/logo+name.png"
+              alt="Bixo"
+              width={60}
+              height={24}
+            />
+          </Link>
           <p className="text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} Bixo. A human-curated recruitment service.
           </p>
