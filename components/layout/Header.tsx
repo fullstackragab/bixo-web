@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserType } from '@/types';
-import Button from '@/components/ui/Button';
 import api from '@/lib/api';
 
 export default function Header() {
@@ -49,65 +47,95 @@ export default function Header() {
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
-    <header className="bg-white border-b border-gray-200">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link href={isAuthenticated ? getDashboardLink() : '/'}>
-              <Image
-                src="/logo+name.png"
-                alt="Bixo"
-                width={100}
-                height={40}
-                priority
-              />
-            </Link>
-          </div>
+    <nav className="border-b border-border bg-card">
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          <Link
+            href={isAuthenticated ? getDashboardLink() : '/'}
+            className="hover:opacity-70 transition-opacity"
+          >
+            <span className="text-xl text-foreground font-medium">Bixo</span>
+          </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-8">
             {isAuthenticated ? (
               <>
-                <Link href={getDashboardLink()} className="text-gray-600 hover:text-gray-900">
+                <Link
+                  href={getDashboardLink()}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
                   Dashboard
                 </Link>
                 {user?.userType === UserType.Candidate && (
-                  <Link href="/candidate/messages" className="text-gray-600 hover:text-gray-900 relative">
-                    Messages
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-2 -right-4 bg-red-500 text-white text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
-                  </Link>
-                )}
-                {user?.userType === UserType.Company && (
                   <>
-                    <Link href="/company/talent" className="text-gray-600 hover:text-gray-900">
-                      Talent
+                    <Link
+                      href="/candidate/profile"
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Profile
                     </Link>
-                    <Link href="/company/shortlists" className="text-gray-600 hover:text-gray-900">
-                      Shortlists
-                    </Link>
-                    <Link href="/company/billing" className="text-gray-600 hover:text-gray-900">
-                      Billing
-                    </Link>
-                    <Link href="/company/settings" className="text-gray-600 hover:text-gray-900">
-                      Settings
+                    <Link
+                      href="/candidate/messages"
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors relative"
+                    >
+                      Messages
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-2 -right-4 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
                     </Link>
                   </>
                 )}
-                <Button variant="ghost" onClick={logout}>
-                  Logout
-                </Button>
+                {user?.userType === UserType.Company && (
+                  <>
+                    <Link
+                      href="/company/shortlists"
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Shortlists
+                    </Link>
+                    <Link
+                      href="/company/talent"
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Talent
+                    </Link>
+                  </>
+                )}
+                <button
+                  onClick={logout}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Sign out
+                </button>
               </>
             ) : (
               <>
-                <Link href="/login">
-                  <Button variant="ghost">Login</Button>
+                <Link
+                  href="/#how-it-works"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  How it works
                 </Link>
-                <Link href="/register">
-                  <Button>Get Started</Button>
+                <Link
+                  href="/register?type=candidate"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  For candidates
+                </Link>
+                <Link
+                  href="/register?type=company"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  For companies
+                </Link>
+                <Link
+                  href="/login"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Sign in
                 </Link>
               </>
             )}
@@ -118,7 +146,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
               aria-expanded={mobileMenuOpen}
               aria-label="Toggle menu"
             >
@@ -137,81 +165,99 @@ export default function Header() {
 
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4 space-y-2">
+          <div className="md:hidden border-t border-border mt-4 pt-4 space-y-2">
             {isAuthenticated ? (
               <>
                 <Link
                   href={getDashboardLink()}
                   onClick={closeMobileMenu}
-                  className="block px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
                 >
                   Dashboard
                 </Link>
                 {user?.userType === UserType.Candidate && (
-                  <Link
-                    href="/candidate/messages"
-                    onClick={closeMobileMenu}
-                    className="flex items-center justify-between px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                  >
-                    Messages
-                    {unreadCount > 0 && (
-                      <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
-                  </Link>
+                  <>
+                    <Link
+                      href="/candidate/profile"
+                      onClick={closeMobileMenu}
+                      className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      href="/candidate/messages"
+                      onClick={closeMobileMenu}
+                      className="flex items-center justify-between px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                    >
+                      Messages
+                      {unreadCount > 0 && (
+                        <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </Link>
+                  </>
                 )}
                 {user?.userType === UserType.Company && (
                   <>
                     <Link
-                      href="/company/talent"
-                      onClick={closeMobileMenu}
-                      className="block px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    >
-                      Talent
-                    </Link>
-                    <Link
                       href="/company/shortlists"
                       onClick={closeMobileMenu}
-                      className="block px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
                     >
                       Shortlists
                     </Link>
                     <Link
-                      href="/company/billing"
+                      href="/company/talent"
                       onClick={closeMobileMenu}
-                      className="block px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
                     >
-                      Billing
-                    </Link>
-                    <Link
-                      href="/company/settings"
-                      onClick={closeMobileMenu}
-                      className="block px-3 py-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    >
-                      Settings
+                      Talent
                     </Link>
                   </>
                 )}
-                <div className="px-3 py-2">
-                  <Button variant="ghost" onClick={() => { logout(); closeMobileMenu(); }} className="w-full justify-center">
-                    Logout
-                  </Button>
-                </div>
+                <button
+                  onClick={() => { logout(); closeMobileMenu(); }}
+                  className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                >
+                  Sign out
+                </button>
               </>
             ) : (
-              <div className="space-y-2 px-3">
-                <Link href="/login" onClick={closeMobileMenu} className="block">
-                  <Button variant="ghost" className="w-full justify-center">Login</Button>
+              <>
+                <Link
+                  href="/#how-it-works"
+                  onClick={closeMobileMenu}
+                  className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                >
+                  How it works
                 </Link>
-                <Link href="/register" onClick={closeMobileMenu} className="block">
-                  <Button className="w-full justify-center">Get Started</Button>
+                <Link
+                  href="/register?type=candidate"
+                  onClick={closeMobileMenu}
+                  className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                >
+                  For candidates
                 </Link>
-              </div>
+                <Link
+                  href="/register?type=company"
+                  onClick={closeMobileMenu}
+                  className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                >
+                  For companies
+                </Link>
+                <Link
+                  href="/login"
+                  onClick={closeMobileMenu}
+                  className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+                >
+                  Sign in
+                </Link>
+              </>
             )}
           </div>
         )}
-      </nav>
-    </header>
+      </div>
+    </nav>
   );
 }

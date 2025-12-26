@@ -1,67 +1,8 @@
-'use client';
+import { Button } from '../ui/button';
 
-import Link from 'next/link';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import { useAuth } from '@/contexts/AuthContext';
-import { UserType } from '@/types';
-
-function Button({
-  children,
-  onClick,
-  variant = 'default',
-  className = '',
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  variant?: 'default' | 'outline';
-  className?: string;
-}) {
-  const baseClasses = 'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-  const variantClasses = {
-    default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    outline: 'border border-border bg-card hover:bg-accent hover:text-accent-foreground',
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-export default function HomePage() {
-  const { user, isAuthenticated } = useAuth();
-
-  const getDashboardLink = () => {
-    if (!user) return '/';
-    switch (user.userType) {
-      case UserType.Candidate:
-        return '/candidate/dashboard';
-      case UserType.Company:
-        return '/company/dashboard';
-      case UserType.Admin:
-        return '/admin/dashboard';
-      default:
-        return '/';
-    }
-  };
-
-  const handleNavigate = (page: string) => {
-    if (page === 'candidate-onboarding') {
-      window.location.href = '/register?type=candidate';
-    } else if (page === 'company-request') {
-      window.location.href = '/register?type=company';
-    }
-  };
-
+export function HomePage({ onNavigate }: { onNavigate: (page: string) => void }) {
   return (
     <div className="min-h-screen bg-background">
-      <Header />
-
       {/* Hero Section */}
       <section className="max-w-4xl mx-auto px-6 py-24 text-center">
         <h1 className="mb-6 text-4xl">
@@ -70,27 +11,21 @@ export default function HomePage() {
         <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
           No job boards. No applications. No spam. We connect companies with pre-vetted candidates through curated shortlists.
         </p>
-
+        
         <div className="flex gap-4 justify-center">
-          {isAuthenticated ? (
-            <Link href={getDashboardLink()}>
-              <Button>Go to Dashboard</Button>
-            </Link>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => handleNavigate('candidate-onboarding')}
-              >
-                Join as a candidate
-              </Button>
-              <Button
-                onClick={() => handleNavigate('company-request')}
-              >
-                Request a shortlist
-              </Button>
-            </>
-          )}
+          <Button 
+            onClick={() => onNavigate('candidate-onboarding')}
+            variant="outline"
+            className="border-border"
+          >
+            Join as a candidate
+          </Button>
+          <Button 
+            onClick={() => onNavigate('company-request')}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            Request a shortlist
+          </Button>
         </div>
       </section>
 
@@ -106,7 +41,7 @@ export default function HomePage() {
         <div className="grid md:grid-cols-4 gap-8">
           <div className="space-y-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <span className="text-primary font-medium">1</span>
+              <span className="text-primary">1</span>
             </div>
             <h4>Company requests a shortlist</h4>
             <p className="text-sm text-muted-foreground">
@@ -116,7 +51,7 @@ export default function HomePage() {
 
           <div className="space-y-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <span className="text-primary font-medium">2</span>
+              <span className="text-primary">2</span>
             </div>
             <h4>We curate candidates</h4>
             <p className="text-sm text-muted-foreground">
@@ -126,7 +61,7 @@ export default function HomePage() {
 
           <div className="space-y-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <span className="text-primary font-medium">3</span>
+              <span className="text-primary">3</span>
             </div>
             <h4>Company reviews & approves</h4>
             <p className="text-sm text-muted-foreground">
@@ -136,7 +71,7 @@ export default function HomePage() {
 
           <div className="space-y-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <span className="text-primary font-medium">4</span>
+              <span className="text-primary">4</span>
             </div>
             <h4>Introductions are made</h4>
             <p className="text-sm text-muted-foreground">
@@ -190,14 +125,13 @@ export default function HomePage() {
           <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
             Create a profile once. We'll reach out only when there's a role that genuinely fits.
           </p>
-          {!isAuthenticated && (
-            <Button
-              variant="outline"
-              onClick={() => handleNavigate('candidate-onboarding')}
-            >
-              Join as a candidate
-            </Button>
-          )}
+          <Button 
+            onClick={() => onNavigate('candidate-onboarding')}
+            variant="outline"
+            className="border-border"
+          >
+            Join as a candidate
+          </Button>
         </div>
       </section>
 
@@ -208,17 +142,14 @@ export default function HomePage() {
           <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
             Skip the job board noise. Get a curated shortlist of candidates who actually match your needs.
           </p>
-          {!isAuthenticated && (
-            <Button
-              onClick={() => handleNavigate('company-request')}
-            >
-              Request a shortlist
-            </Button>
-          )}
+          <Button 
+            onClick={() => onNavigate('company-request')}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            Request a shortlist
+          </Button>
         </div>
       </section>
-
-      <Footer />
     </div>
   );
 }

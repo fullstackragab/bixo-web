@@ -6,7 +6,8 @@
       "Bash(npx tsc:*)",
       "Bash(npm run build:check:*)",
       "Bash(npm run lint:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(unzip:*)"
     ]
   }
 }
