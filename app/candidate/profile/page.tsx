@@ -9,6 +9,16 @@ import api from '@/lib/api';
 import { deriveCapabilities } from '@/lib/capabilities';
 import { CandidateProfile, CandidateRecommendation, Capabilities } from '@/types';
 
+type ProfileStatus = 'no_cv' | 'under_review' | 'approved' | 'paused';
+
+function getProfileStatus(profile: CandidateProfile | null): ProfileStatus {
+  if (!profile) return 'no_cv';
+  if (!profile.cvFileName) return 'no_cv';
+  if (!profile.profileVisible) return 'paused';
+  // If profile is visible and has CV, check if approved (we infer from profileVisible being true)
+  return 'approved';
+}
+
 function Badge({
   children,
   variant = 'default'
@@ -101,13 +111,71 @@ function Switch({
   );
 }
 
-function Progress({ value, className = '' }: { value: number; className?: string }) {
+function ProfileStatusCard({ status, onEdit }: { status: ProfileStatus; onEdit: () => void }) {
+  const statusConfig = {
+    no_cv: {
+      title: 'CV Required',
+      description: 'Upload your CV to complete your profile and be considered for opportunities.',
+      badge: <Badge variant="warning">Incomplete</Badge>,
+      icon: (
+        <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+    },
+    under_review: {
+      title: 'Under Review',
+      description: 'Your profile is being reviewed by our team. This typically takes 1-2 business days.',
+      badge: <Badge variant="info">Under Review</Badge>,
+      icon: (
+        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    approved: {
+      title: 'Approved & Visible',
+      description: 'Your profile can be considered for curated shortlists.',
+      badge: <Badge variant="success">Active</Badge>,
+      icon: (
+        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    paused: {
+      title: 'Paused',
+      description: 'Your profile is hidden from companies. Turn on visibility when you\'re ready.',
+      badge: <Badge variant="default">Paused</Badge>,
+      icon: (
+        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+  };
+
+  const config = statusConfig[status];
+
   return (
-    <div className={`w-full bg-muted rounded-full overflow-hidden ${className}`}>
-      <div
-        className="h-full bg-primary transition-all"
-        style={{ width: `${value}%` }}
-      />
+    <div className="border border-border rounded-lg p-6 bg-card">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5">{config.icon}</div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm font-medium text-foreground">Profile status</p>
+              {config.badge}
+            </div>
+            <p className="text-sm text-muted-foreground">{config.description}</p>
+          </div>
+        </div>
+        {status === 'no_cv' && (
+          <Button variant="default" size="sm" onClick={onEdit}>
+            Upload CV
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -139,23 +207,29 @@ export default function CandidateProfilePage() {
 
   useEffect(() => {
     if (!authLoading && user) {
+      const loadData = async () => {
+        setIsLoading(true);
+
+        const [profileRes, recsRes] = await Promise.all([
+          api.get<CandidateProfile>('/candidates/profile'),
+          api.get<CandidateRecommendation[]>('/candidates/me/recommendations'),
+        ]);
+
+        if (profileRes.success && profileRes.data) {
+          setProfile(profileRes.data);
+          setIsVisible(profileRes.data.profileVisible);
+        }
+
+        if (recsRes.success && recsRes.data) {
+          setRecommendations(recsRes.data);
+        }
+
+        setIsLoading(false);
+      };
+
       loadData();
     }
   }, [authLoading, user]);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    await Promise.all([loadProfile(), loadRecommendations()]);
-    setIsLoading(false);
-  };
-
-  const loadProfile = async () => {
-    const res = await api.get<CandidateProfile>('/candidates/profile');
-    if (res.success && res.data) {
-      setProfile(res.data);
-      setIsVisible(res.data.profileVisible);
-    }
-  };
 
   const loadRecommendations = async () => {
     const res = await api.get<CandidateRecommendation[]>('/candidates/me/recommendations');
@@ -202,23 +276,17 @@ export default function CandidateProfilePage() {
     );
   }
 
-  // Calculate profile completeness
-  const completionPercentage = profile ? Math.min(100, Math.round(
-    ((profile.firstName ? 20 : 0) +
-    (profile.lastName ? 20 : 0) +
-    (profile.desiredRole ? 20 : 0) +
-    (profile.skills && profile.skills.length > 0 ? 20 : 0) +
-    (profile.cvFileName ? 20 : 0)) || 0
-  )) : 0;
+  // Determine profile status
+  const profileStatus = getProfileStatus(profile);
 
   // Derive capabilities from skills (backend provides or we derive)
   const capabilities: Capabilities = profile?.capabilities ||
     (profile?.skills ? deriveCapabilities(profile.skills) : {});
 
-  const seniority = profile?.seniorityEstimate || 'Senior / Lead level';
-  const rolePreferences = profile?.desiredRole || 'Senior frontend role focused on product development, ideally with React. Open to team lead positions. Interested in companies building developer tools or B2B SaaS.';
-  const locationText = profile?.locationPreference || 'Remote, EU timezone preferred';
-  const yearsExperience = 8;
+  const hasCapabilities = Object.keys(capabilities).length > 0;
+  const seniority = profile?.seniorityEstimate;
+  const rolePreferences = profile?.desiredRole;
+  const locationText = profile?.locationPreference;
 
   return (
     <div className="min-h-screen bg-background">
@@ -228,73 +296,88 @@ export default function CandidateProfilePage() {
         <div className="mb-12">
           <h1 className="mb-6">Your profile</h1>
 
-          <div className="border border-border rounded-lg p-6 bg-card mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Profile completeness</p>
-                <p className="text-2xl text-foreground">{completionPercentage}%</p>
-              </div>
-              <Badge variant={completionPercentage === 100 ? 'primary' : 'default'}>
-                {completionPercentage === 100 ? 'Complete' : 'In progress'}
-              </Badge>
-            </div>
-            <Progress value={completionPercentage} className="h-2" />
+          {/* Profile Status Card */}
+          <div className="mb-6">
+            <ProfileStatusCard status={profileStatus} onEdit={handleEdit} />
           </div>
 
-          <div className="border border-border rounded-lg p-6 bg-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <label htmlFor="visibility" className="block text-base font-medium text-foreground">Visibility</label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isVisible ? 'Your profile is visible to companies' : 'Your profile is hidden'}
-                </p>
+          {/* Visibility Toggle - only show if profile has CV */}
+          {profile?.cvFileName && (
+            <div className="border border-border rounded-lg p-6 bg-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label htmlFor="visibility" className="block text-base font-medium text-foreground">
+                    Profile visibility
+                  </label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {isVisible
+                      ? 'Companies may discover your profile through curated matching.'
+                      : 'Your profile will not be considered for new shortlists.'}
+                  </p>
+                </div>
+                <Switch
+                  id="visibility"
+                  checked={isVisible}
+                  onCheckedChange={handleVisibilityChange}
+                />
               </div>
-              <Switch
-                id="visibility"
-                checked={isVisible}
-                onCheckedChange={handleVisibilityChange}
-              />
             </div>
-          </div>
+          )}
+
         </div>
 
         <div className="space-y-8">
           {/* Profile Card */}
           <div className="border border-border rounded-lg p-6 bg-card">
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-6">
               <div>
-                <h3 className="mb-1">{profile?.desiredRole || 'Senior Frontend Engineer'}</h3>
-                <p className="text-sm text-muted-foreground">{yearsExperience} years experience</p>
+                <h3 className="mb-1">{profile?.firstName && profile?.lastName ? `${profile.firstName} ${profile.lastName}` : 'Your Profile'}</h3>
+                {profile?.email && (
+                  <p className="text-sm text-muted-foreground">{profile.email}</p>
+                )}
               </div>
               <Button variant="outline" onClick={handleEdit}>Edit</Button>
             </div>
 
             <div className="space-y-6">
-              {/* Capabilities - Editorial display of skills */}
-              <div>
-                <p className="text-sm font-medium mb-3">Capabilities</p>
-                <CapabilitiesDisplay capabilities={capabilities} />
-                <p className="text-xs text-muted-foreground mt-3 italic">
-                  We organize your skills into capabilities to help companies understand your experience more clearly.
+              {/* Expertise Areas - Editorial display of capabilities */}
+              {hasCapabilities && (
+                <div>
+                  <p className="text-sm font-medium mb-3">Expertise areas</p>
+                  <CapabilitiesDisplay capabilities={capabilities} />
+                </div>
+              )}
+
+              {seniority !== undefined && seniority !== null && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Seniority</p>
+                  <p className="text-sm text-muted-foreground">
+                    {typeof seniority === 'number'
+                      ? ['Junior', 'Mid-level', 'Senior', 'Lead', 'Principal'][seniority] || 'Senior'
+                      : seniority}
+                  </p>
+                </div>
+              )}
+
+              {rolePreferences && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Role preferences</p>
+                  <p className="text-sm text-muted-foreground">{rolePreferences}</p>
+                </div>
+              )}
+
+              {locationText && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Location</p>
+                  <p className="text-sm text-muted-foreground">{locationText}</p>
+                </div>
+              )}
+
+              {!hasCapabilities && !rolePreferences && !locationText && (
+                <p className="text-sm text-muted-foreground italic">
+                  Complete your profile to help us match you with the right opportunities.
                 </p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-2">Seniority</p>
-                <p className="text-sm text-muted-foreground">{seniority}</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-2">Role preferences</p>
-                <p className="text-sm text-muted-foreground">
-                  {rolePreferences}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-2">Location</p>
-                <p className="text-sm text-muted-foreground">{locationText}</p>
-              </div>
+              )}
             </div>
           </div>
 
@@ -302,18 +385,11 @@ export default function CandidateProfilePage() {
           <div className="border border-border rounded-lg p-6 bg-card">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="mb-1">Recommendations</h3>
+                <h3 className="mb-1">Private recommendations</h3>
                 <p className="text-sm text-muted-foreground">
-                  {recommendations.length}/3 recommendations
+                  Shared only with companies you are introduced to.
                 </p>
               </div>
-            </div>
-
-            {/* Privacy note */}
-            <div className="bg-muted/50 rounded-lg p-3 mb-4">
-              <p className="text-xs text-muted-foreground">
-                Recommendations are private and shared only with your permission.
-              </p>
             </div>
 
             {/* Recommendations list */}
