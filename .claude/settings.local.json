@@ -7,7 +7,9 @@
       "Bash(npm run build:check:*)",
       "Bash(npm run lint:*)",
       "Bash(ls:*)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(find:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

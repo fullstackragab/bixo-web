@@ -5,7 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/layout/Header';
+import CapabilitiesDisplay from '@/components/CapabilitiesDisplay';
 import api from '@/lib/api';
+import { deriveCapabilities } from '@/lib/capabilities';
+import { CandidateRecommendationsSummary, CompanyRecommendation, Capabilities } from '@/types';
 
 type ShortlistState = 'searching' | 'pricing-ready' | 'awaiting-approval' | 'delivered' | 'no-match';
 
@@ -22,6 +25,7 @@ interface ShortlistCandidate {
   rank: number;
   skills?: string[];
   topSkills?: string[];
+  capabilities?: Capabilities;
   email?: string;
 }
 
@@ -101,6 +105,7 @@ export default function CompanyShortlistDetailPage() {
   const { user, isLoading: authLoading } = useAuth();
 
   const [shortlist, setShortlist] = useState<ShortlistDetail | null>(null);
+  const [recommendations, setRecommendations] = useState<CandidateRecommendationsSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
 
@@ -115,8 +120,25 @@ export default function CompanyShortlistDetailPage() {
     const res = await api.get<ShortlistDetail>(`/shortlists/${shortlistId}`);
     if (res.success && res.data) {
       setShortlist(res.data);
+      // Load recommendations for delivered shortlists
+      const status = res.data.status?.toLowerCase().replace(/_/g, '');
+      if (status === 'delivered' || status === 'completed' || status === 'paid') {
+        loadRecommendations();
+      }
     }
     setIsLoading(false);
+  };
+
+  const loadRecommendations = async () => {
+    const res = await api.get<CandidateRecommendationsSummary[]>(`/shortlists/${shortlistId}/recommendations`);
+    if (res.success && res.data) {
+      setRecommendations(res.data);
+    }
+  };
+
+  const getCandidateRecommendations = (candidateId: string): CompanyRecommendation[] => {
+    const summary = recommendations.find(r => r.candidateId === candidateId);
+    return summary?.recommendations || [];
   };
 
   const handleApprove = async () => {
@@ -281,6 +303,10 @@ export default function CompanyShortlistDetailPage() {
                     const yearsExp = candidate.yearsExperience ||
                       (candidate.seniorityEstimate === 'senior' ? 8 :
                        candidate.seniorityEstimate === 'mid' ? 4 : 2);
+                    const candidateRecs = getCandidateRecommendations(candidate.candidateId);
+
+                    // Derive capabilities from skills for display
+                    const capabilities = candidate.capabilities || deriveCapabilities(skills);
 
                     return (
                       <div key={candidate.candidateId} className="border border-border rounded-lg p-6 bg-card">
@@ -302,19 +328,36 @@ export default function CompanyShortlistDetailPage() {
                             </p>
                           )}
 
-                          {skills.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {skills.slice(0, 6).map((skill, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-flex items-center rounded-md border border-border px-2.5 py-0.5 text-xs"
-                                >
-                                  {skill}
-                                </span>
+                          <CapabilitiesDisplay capabilities={capabilities} showEmptyState={false} />
+                        </div>
+
+                        {/* Recommendations Section */}
+                        {candidateRecs.length > 0 && (
+                          <div className="pt-4 border-t border-border mb-4">
+                            <p className="text-sm font-medium mb-3">Recommendations</p>
+                            <div className="space-y-3">
+                              {candidateRecs.map((rec, idx) => (
+                                <div key={idx} className="bg-muted/50 rounded-lg p-4">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div>
+                                      <p className="text-sm font-medium text-foreground">
+                                        {rec.recommenderName}
+                                        {rec.recommenderRole && `, ${rec.recommenderRole}`}
+                                        {rec.recommenderCompany && ` at ${rec.recommenderCompany}`}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {rec.relationship}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground italic">
+                                    &ldquo;{rec.content}&rdquo;
+                                  </p>
+                                </div>
                               ))}
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
                         <div className="pt-4 border-t border-border">
                           <p className="text-sm mb-1">Contact</p>

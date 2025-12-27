@@ -15,6 +15,9 @@ interface AdminDashboard {
   pendingShortlists: number;
   completedShortlists: number;
   totalRevenue: number;
+  pendingRecommendations?: number;
+  pendingCandidates?: number;
+  newCompanies?: number;
   recentShortlists: Array<{
     id: string;
     companyName: string;
@@ -22,6 +25,60 @@ interface AdminDashboard {
     status: string;
     createdAt: string;
   }>;
+}
+
+interface ActionItem {
+  label: string;
+  count: number;
+  href: string;
+  color: 'amber' | 'blue' | 'purple' | 'green';
+  icon: React.ReactNode;
+}
+
+const colorClasses = {
+  amber: 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100',
+  blue: 'bg-blue-50 border-blue-200 text-blue-800 hover:bg-blue-100',
+  purple: 'bg-purple-50 border-purple-200 text-purple-800 hover:bg-purple-100',
+  green: 'bg-green-50 border-green-200 text-green-800 hover:bg-green-100',
+};
+
+function ActionRequiredSection({ items }: { items: ActionItem[] }) {
+  if (items.length === 0) {
+    return (
+      <div className="mb-6 sm:mb-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <div className="flex items-center gap-2 text-gray-600">
+          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>All caught up! No pending actions.</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 sm:mb-8">
+      <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Action Required</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {items.map((item) => (
+          <Link key={item.href} href={item.href}>
+            <div className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${colorClasses[item.color]}`}>
+              <div className="flex-shrink-0">
+                {item.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-2xl font-bold">{item.count}</p>
+                <p className="text-sm truncate">{item.label}</p>
+              </div>
+              <svg className="w-5 h-5 flex-shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function AdminDashboardPage() {
@@ -87,20 +144,61 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6 sm:mb-8">
+      <div className="mb-6 sm:mb-8">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        {dashboard && dashboard.pendingShortlists > 0 && (
-          <Link href="/admin/shortlists?status=pending">
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2 rounded-lg hover:bg-amber-100 transition-colors">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-              </span>
-              <span className="font-medium">{dashboard.pendingShortlists} new shortlist{dashboard.pendingShortlists !== 1 ? 's' : ''}</span>
-            </div>
-          </Link>
-        )}
       </div>
+
+      {/* Action Required Section */}
+      {dashboard && (
+        <ActionRequiredSection
+          items={[
+            {
+              label: 'Shortlists to review',
+              count: dashboard.pendingShortlists || 0,
+              href: '/admin/shortlists?status=pending',
+              color: 'amber' as const,
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              ),
+            },
+            {
+              label: 'Candidates to approve',
+              count: dashboard.pendingCandidates || 0,
+              href: '/admin/candidates?status=pending_review',
+              color: 'blue' as const,
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              ),
+            },
+            {
+              label: 'Recommendations pending',
+              count: dashboard.pendingRecommendations || 0,
+              href: '/admin/recommendations',
+              color: 'purple' as const,
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              ),
+            },
+            {
+              label: 'New companies',
+              count: dashboard.newCompanies || 0,
+              href: '/admin/companies',
+              color: 'green' as const,
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              ),
+            },
+          ].filter(item => item.count > 0)}
+        />
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
@@ -166,7 +264,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <Link href="/admin/shortlists?status=pending">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
@@ -175,6 +273,24 @@ export default function AdminDashboardPage() {
                 <p className="text-sm text-gray-500">Review and approve shortlist requests</p>
               </div>
               <Badge variant="warning">{dashboard?.pendingShortlists || 0}</Badge>
+            </div>
+          </Card>
+        </Link>
+
+        <Link href="/admin/recommendations">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900">Pending Recommendations</h3>
+                <p className="text-sm text-gray-500">Review candidate recommendations</p>
+              </div>
+              {(dashboard?.pendingRecommendations || 0) > 0 ? (
+                <Badge variant="primary">{dashboard?.pendingRecommendations || 0}</Badge>
+              ) : (
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
             </div>
           </Card>
         </Link>

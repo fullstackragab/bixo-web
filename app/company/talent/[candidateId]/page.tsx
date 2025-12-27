@@ -11,7 +11,10 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Breadcrumb, { companyBreadcrumbs } from "@/components/ui/Breadcrumb";
 import SendMessageModal from "@/components/SendMessageModal";
+import CapabilitiesDisplay from "@/components/CapabilitiesDisplay";
 import api from "@/lib/api";
+import { deriveCapabilities } from "@/lib/capabilities";
+import { Capabilities } from "@/types";
 
 interface CandidateDetail {
   candidateId: string;
@@ -24,6 +27,7 @@ interface CandidateDetail {
   seniorityEstimate: string | null;
   skills: { skillName: string; category: number }[];
   topSkills?: string[];
+  capabilities?: Capabilities;
   recommendationsCount: number;
   lastActiveAt: string;
   isSaved: boolean;
@@ -31,17 +35,6 @@ interface CandidateDetail {
   // Full profile fields (only returned when verified shortlist access)
   isInShortlist?: boolean;
 }
-
-// Skill category mapping for grouping
-const SKILL_CATEGORIES: Record<number, string> = {
-  0: "Languages",
-  1: "Frontend",
-  2: "Backend",
-  3: "Database",
-  4: "DevOps",
-  5: "Tools",
-  6: "Other",
-};
 
 export default function CandidateProfilePage() {
   const params = useParams();
@@ -154,17 +147,6 @@ export default function CandidateProfilePage() {
     return date.toLocaleDateString();
   };
 
-  // Group skills by category
-  const groupSkillsByCategory = () => {
-    if (!candidate?.skills?.length) return {};
-    return candidate.skills.reduce((acc, skill) => {
-      const category = SKILL_CATEGORIES[skill.category] || "Other";
-      if (!acc[category]) acc[category] = [];
-      acc[category].push(skill.skillName);
-      return acc;
-    }, {} as Record<string, string[]>);
-  };
-
   // Get back link based on context
   const backLink = shortlistId
     ? `/company/shortlists/${shortlistId}`
@@ -199,8 +181,7 @@ export default function CandidateProfilePage() {
       : "Anonymous Candidate";
 
   const skills = candidate.skills?.map(s => s.skillName) || candidate.topSkills || [];
-  const groupedSkills = groupSkillsByCategory();
-  const hasGroupedSkills = Object.keys(groupedSkills).length > 0;
+  const capabilities = candidate.capabilities || deriveCapabilities(skills);
   const availabilityInfo = getAvailabilityInfo(candidate.availability);
 
   return (
@@ -316,52 +297,13 @@ export default function CandidateProfilePage() {
               </div>
             </Card>
 
-            {/* Skills Card */}
-            {skills.length > 0 && (
-              <Card>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Skills
-                  <span className="text-sm font-normal text-gray-500 ml-2">
-                    ({skills.length})
-                  </span>
-                </h2>
-
-                {hasGroupedSkills ? (
-                  // Grouped skills display
-                  <div className="space-y-4">
-                    {Object.entries(groupedSkills).map(([category, categorySkills]) => (
-                      <div key={category}>
-                        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                          {category}
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {categorySkills.map((skill, i) => (
-                            <span
-                              key={i}
-                              className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-50 text-gray-700 border border-gray-200 transition-colors hover:bg-gray-100"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  // Flat skills display (fallback for topSkills)
-                  <div className="flex flex-wrap gap-2">
-                    {skills.map((skill, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-50 text-gray-700 border border-gray-200 transition-colors hover:bg-gray-100"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            )}
+            {/* Capabilities Card */}
+            <Card>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Capabilities
+              </h2>
+              <CapabilitiesDisplay capabilities={capabilities} />
+            </Card>
           </div>
 
           {/* Sidebar - Right Column */}

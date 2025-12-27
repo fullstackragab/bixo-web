@@ -10,7 +10,9 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Breadcrumb, { companyBreadcrumbs } from "@/components/ui/Breadcrumb";
+import { CapabilitiesInline } from "@/components/CapabilitiesDisplay";
 import api from "@/lib/api";
+import { deriveCapabilities } from "@/lib/capabilities";
 import {
   SeniorityLevel,
   Availability,
@@ -18,6 +20,7 @@ import {
   TalentSearchResult,
   RemotePreference,
   LocationRanking,
+  Capabilities,
 } from "@/types";
 
 export default function CompanyTalentPage() {
@@ -429,17 +432,11 @@ export default function CompanyTalentPage() {
               </div>
 
               {candidate.topSkills.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {candidate.topSkills.slice(0, 5).map((skill, i) => (
-                    <Badge key={i} variant="primary">
-                      {skill}
-                    </Badge>
-                  ))}
-                  {candidate.topSkills.length > 5 && (
-                    <Badge variant="default">
-                      +{candidate.topSkills.length - 5}
-                    </Badge>
-                  )}
+                <div className="mb-3">
+                  <CapabilitiesInline
+                    capabilities={deriveCapabilities(candidate.topSkills)}
+                    maxGroups={2}
+                  />
                 </div>
               )}
 

@@ -197,6 +197,9 @@ export interface UserResponse {
   companyId?: string;
 }
 
+// Skill level type
+export type SkillLevel = 'primary' | 'secondary';
+
 // Candidate types
 export interface CandidateSkill {
   id: string;
@@ -204,7 +207,17 @@ export interface CandidateSkill {
   confidenceScore: number;
   category: SkillCategory;
   isVerified: boolean;
+  skillLevel: SkillLevel;
 }
+
+export interface GroupedSkills {
+  primary: CandidateSkill[];
+  secondary: CandidateSkill[];
+}
+
+// Capabilities - derived from skills for presentation only
+// Maps category names to arrays of skill names
+export type Capabilities = Record<string, string[]>;
 
 export interface CandidateProfile {
   id: string;
@@ -224,6 +237,8 @@ export interface CandidateProfile {
   profileVisible: boolean;
   seniorityEstimate?: SeniorityLevel;
   skills: CandidateSkill[];
+  groupedSkills?: GroupedSkills;
+  capabilities?: Capabilities;
   recommendationsCount: number;
   profileViewsCount: number;
   createdAt: string;
@@ -459,4 +474,83 @@ export interface SendShortlistMessageResponse {
   content: string;
   recipientCount: number;
   createdAt: string;
+}
+
+// Recommendation types
+export type RecommendationStatus = 'Pending' | 'Submitted' | 'Approved' | 'PendingReview' | 'Rejected';
+
+export interface CandidateRecommendation {
+  id: string;
+  recommenderName: string;
+  recommenderEmail: string;
+  relationship: string;
+  recommenderRole?: string;
+  recommenderCompany?: string;
+  content?: string;
+  status: RecommendationStatus;
+  isSubmitted: boolean;
+  isApprovedByCandidate: boolean;
+  isAdminApproved: boolean;
+  isRejected: boolean;
+  rejectionReason?: string;
+  submittedAt?: string;
+  approvedAt?: string;
+  adminApprovedAt?: string;
+  createdAt: string;
+}
+
+export interface RecommenderFormData {
+  candidateName: string;
+  relationship: string;
+  isAlreadySubmitted: boolean;
+  submittedAt?: string;
+}
+
+export interface CompanyRecommendation {
+  recommenderName: string;
+  relationship: string;
+  recommenderRole?: string;
+  recommenderCompany?: string;
+  content: string;
+  submittedAt: string;
+}
+
+export interface CandidateRecommendationsSummary {
+  candidateId: string;
+  approvedCount: number;
+  recommendations: CompanyRecommendation[];
+}
+
+export interface AdminRecommendation {
+  id: string;
+  candidateId: string;
+  candidateName: string;
+  recommenderName: string;
+  recommenderEmail: string;
+  relationship: string;
+  recommenderRole?: string;
+  recommenderCompany?: string;
+  content: string;
+  status: string;
+  isAdminApproved: boolean;
+  isRejected: boolean;
+  rejectionReason?: string;
+  submittedAt: string;
+  adminApprovedAt?: string;
+}
+
+export interface RequestRecommendationRequest {
+  recommenderName: string;
+  recommenderEmail: string;
+  relationship: string;
+}
+
+export interface SubmitRecommendationRequest {
+  content: string;
+  recommenderRole?: string;
+  recommenderCompany?: string;
+}
+
+export interface RejectRecommendationRequest {
+  reason: string;
 }

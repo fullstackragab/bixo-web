@@ -6,10 +6,11 @@ import Header from '@/components/layout/Header';
 import api from '@/lib/api';
 import { Availability } from '@/types';
 
-function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+function Label({ htmlFor, children, required = false }: { htmlFor: string; children: React.ReactNode; required?: boolean }) {
   return (
     <label htmlFor={htmlFor} className="block text-base font-medium text-foreground mb-2">
       {children}
+      {required && <span className="text-red-500 ml-1">*</span>}
     </label>
   );
 }
@@ -101,6 +102,7 @@ export default function CandidateOnboardPage() {
 
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     cvFile: null as File | null,
     linkedinUrl: '',
@@ -110,50 +112,71 @@ export default function CandidateOnboardPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFormData({ ...formData, cvFile: e.target.files[0] });
+      setError(null);
     }
   };
 
   const handleNext = () => {
+    if (step === 1 && !formData.cvFile) {
+      setError('Please upload your CV to continue');
+      return;
+    }
     if (step < 3) {
       setStep(step + 1);
+      setError(null);
     }
   };
 
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
+      setError(null);
     }
   };
 
   const handleVisibilitySelect = async (availability: Availability) => {
     setIsLoading(true);
+    setError(null);
 
     try {
-      // Upload CV if provided
+      // Upload CV (required)
       if (formData.cvFile) {
         const uploadFormData = new FormData();
         uploadFormData.append('file', formData.cvFile);
-        await api.uploadFile('/candidates/cv/upload', uploadFormData);
+        const uploadRes = await api.uploadFile('/candidates/cv/upload', uploadFormData);
+        if (!uploadRes.success) {
+          setError(uploadRes.error || 'Failed to upload CV');
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        setError('CV is required to create your profile');
+        setIsLoading(false);
+        return;
       }
 
       // Save onboarding data
-      await api.post('/candidates/onboard', {
+      const res = await api.post('/candidates/onboard', {
         linkedInUrl: formData.linkedinUrl || null,
         desiredRole: formData.rolePreference || null,
         availability,
       });
 
-      router.push('/candidate/profile');
+      if (res.success) {
+        router.push('/candidate/profile');
+      } else {
+        setError(res.error || 'Failed to complete onboarding');
+      }
     } catch {
-      // Continue anyway
-      router.push('/candidate/profile');
+      setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const canContinueStep1 = formData.cvFile || formData.linkedinUrl;
-  const canContinueStep2 = formData.rolePreference;
+  // CV is required to continue
+  const canContinueStep1 = !!formData.cvFile;
+  const canContinueStep2 = !!formData.rolePreference;
 
   return (
     <div className="min-h-screen bg-background">
@@ -174,21 +197,33 @@ export default function CandidateOnboardPage() {
           <p className="text-sm text-muted-foreground">Step {step} of 3</p>
         </div>
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
         {step === 1 && (
           <div className="space-y-6">
             <div>
-              <h1 className="mb-3">Upload your CV or LinkedIn</h1>
+              <h1 className="mb-3">Upload your CV</h1>
               <p className="text-muted-foreground">
-                We'll use this to understand your background. You can refine your profile later.
+                We use your CV to understand your experience and match you accurately.
+                Your profile is reviewed by a human — you&apos;ll never auto-apply to jobs.
               </p>
             </div>
 
             <div className="space-y-6">
+              {/* CV Upload - Required */}
               <div className="space-y-2">
-                <Label htmlFor="cv">CV / Resume</Label>
+                <Label htmlFor="cv" required>CV / Resume</Label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-border rounded-lg p-8 text-center bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                    formData.cvFile
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-muted/30 hover:bg-muted/50'
+                  }`}
                 >
                   <input
                     ref={fileInputRef}
@@ -198,48 +233,52 @@ export default function CandidateOnboardPage() {
                     onChange={handleFileChange}
                     className="hidden"
                   />
-                  <svg
-                    className="w-8 h-8 mx-auto mb-3 text-muted-foreground"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
                   {formData.cvFile ? (
-                    <p className="text-sm text-foreground">{formData.cvFile.name}</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm text-foreground font-medium">{formData.cvFile.name}</span>
+                    </div>
                   ) : (
                     <>
-                      <p className="text-sm text-foreground mb-1">Click to upload</p>
-                      <p className="text-xs text-muted-foreground">PDF, DOC, or DOCX</p>
+                      <svg
+                        className="w-8 h-8 mx-auto mb-3 text-muted-foreground"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                      <p className="text-sm text-foreground mb-1">Click to upload your CV</p>
+                      <p className="text-xs text-muted-foreground">PDF, DOC, or DOCX (required)</p>
                     </>
                   )}
                 </div>
               </div>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border"></div>
+              {/* LinkedIn - Optional, smaller visual weight */}
+              <div className="pt-4 border-t border-border">
+                <div className="space-y-2">
+                  <label htmlFor="linkedin" className="block text-sm font-medium text-muted-foreground">
+                    LinkedIn profile URL <span className="text-xs">(optional)</span>
+                  </label>
+                  <Input
+                    id="linkedin"
+                    type="url"
+                    value={formData.linkedinUrl}
+                    onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
+                    placeholder="https://linkedin.com/in/yourprofile"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your LinkedIn is used for context only and won&apos;t affect your matching.
+                  </p>
                 </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-background px-2 text-muted-foreground">or</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="linkedin">LinkedIn profile URL</Label>
-                <Input
-                  id="linkedin"
-                  type="url"
-                  value={formData.linkedinUrl}
-                  onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
-                  placeholder="https://linkedin.com/in/yourprofile"
-                />
               </div>
             </div>
 
@@ -249,6 +288,12 @@ export default function CandidateOnboardPage() {
             >
               Continue
             </Button>
+
+            {!canContinueStep1 && (
+              <p className="text-xs text-muted-foreground">
+                Upload your CV to continue
+              </p>
+            )}
           </div>
         )}
 
@@ -292,7 +337,7 @@ export default function CandidateOnboardPage() {
         {step === 3 && (
           <div className="space-y-6">
             <div>
-              <h1 className="mb-3">Set your visibility</h1>
+              <h1 className="mb-3">Set your availability</h1>
               <p className="text-muted-foreground">
                 You can change this anytime from your profile.
               </p>
@@ -306,7 +351,7 @@ export default function CandidateOnboardPage() {
               >
                 <h4 className="mb-2">Open to opportunities</h4>
                 <p className="text-sm text-muted-foreground">
-                  Your profile will be visible to companies requesting shortlists.
+                  Your profile will be reviewed and, once approved, visible to companies requesting shortlists.
                 </p>
               </button>
 
@@ -329,6 +374,14 @@ export default function CandidateOnboardPage() {
             >
               Back
             </Button>
+
+            {/* Curated system note */}
+            <div className="mt-8 p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                This is a curated system. Your profile is reviewed by humans before being shown to companies —
+                we prioritize quality matches over volume.
+              </p>
+            </div>
           </div>
         )}
       </div>
