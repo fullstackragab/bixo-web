@@ -74,6 +74,7 @@ export enum ShortlistStatus {
   Delivered = 5,
   PaymentCaptured = 6,
   Cancelled = 7,
+  NoMatch = 8,
 }
 
 // String values for ShortlistStatus (backend returns these)
@@ -85,7 +86,9 @@ export type ShortlistStatusString =
   | "pricingApproved"
   | "delivered"
   | "paymentCaptured"
-  | "cancelled";
+  | "cancelled"
+  | "noMatch"
+  | "no_match";
 
 // Payment status for payment records
 export type PaymentStatus =

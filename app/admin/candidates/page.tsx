@@ -90,17 +90,18 @@ export default function AdminCandidatesPage() {
 
       const res = await api.get<PaginatedResponse>(url);
       if (res.success && res.data) {
-        setCandidates(res.data.items || []);
+        const loadedCandidates = res.data.items || [];
+        setCandidates(loadedCandidates);
         setTotalCount(res.data.totalCount || 0);
+        // Calculate pending count from loaded candidates
+        const pending = loadedCandidates.filter(
+          (c: AdminCandidate) => c.hasCv && c.profileStatus === 'pending_review'
+        ).length;
+        setPendingCount(pending);
       } else {
         setCandidates([]);
         setTotalCount(0);
-      }
-
-      // Load pending count for badge
-      const pendingRes = await api.get<{ count: number }>('/admin/candidates/pending-count');
-      if (pendingRes.success && pendingRes.data) {
-        setPendingCount(pendingRes.data.count || 0);
+        setPendingCount(0);
       }
     } catch (error) {
       console.error('Failed to load candidates:', error);

@@ -146,6 +146,83 @@ const parseTechStack = (techStack: string[] | string | undefined): string[] => {
   }
 };
 
+// Helper to generate context-aware no-match messages
+const generateAdjustMessage = (shortlist: ShortlistDetail | null): string => {
+  if (!shortlist) return '';
+
+  const role = shortlist.roleTitle || 'role';
+  const techStack = shortlist.techStackRequired?.join(', ') || '';
+  const seniority = normalizeSeniority(shortlist.seniorityRequired);
+  const location = shortlist.locationPreference;
+  const isRemote = shortlist.remoteAllowed;
+
+  // Build specific suggestions based on actual requirements
+  const suggestions: string[] = [];
+
+  if (techStack) {
+    suggestions.push(`Broader tech stack beyond ${techStack} (e.g., similar frameworks or transferable skills)`);
+  } else {
+    suggestions.push('More flexibility on the tech stack');
+  }
+
+  if (!isRemote && location) {
+    suggestions.push(`Remote or hybrid options instead of ${location}-only`);
+  } else if (!isRemote) {
+    suggestions.push('Remote or hybrid options instead of onsite-only');
+  }
+
+  if (seniority === 'senior' || seniority === 'lead' || seniority === 'principal') {
+    suggestions.push('Wider seniority range (e.g., strong mid-level candidates alongside senior)');
+  } else if (seniority === 'junior') {
+    suggestions.push('Consider mid-level candidates who may be a stronger fit');
+  }
+
+  const suggestionList = suggestions.map(s => `• ${s}`).join('\n');
+
+  return `We've reviewed your ${role} search and our current candidate pool, but the specific requirements are limiting our matches.
+
+We recommend considering one of the following adjustments:
+${suggestionList}
+
+If you're open to adjusting the brief, we'd be happy to continue the search. You can update your requirements directly from your dashboard, or reply to let us know your preferences.`;
+};
+
+const generateExtendMessage = (shortlist: ShortlistDetail | null): string => {
+  if (!shortlist) return '';
+
+  const role = shortlist.roleTitle || 'role';
+
+  return `We haven't found the right match for your ${role} search yet, but we'd like to continue looking for another 7-14 days.
+
+New candidates join our network regularly, and we're optimistic we may find suitable profiles soon.
+
+No action needed from you — we'll reach out as soon as we have candidates to share.`;
+};
+
+const generateCloseMessage = (shortlist: ShortlistDetail | null): string => {
+  if (!shortlist) return '';
+
+  const role = shortlist.roleTitle || 'role';
+  const techStack = shortlist.techStackRequired?.join(', ') || '';
+  const seniority = normalizeSeniority(shortlist.seniorityRequired);
+
+  // Build a specific reason based on requirements
+  let specificReason = '';
+  if (techStack && seniority) {
+    specificReason = ` The combination of ${seniority}-level expertise in ${techStack} proved difficult to match in our current pool.`;
+  } else if (techStack) {
+    specificReason = ` The specific ${techStack} requirements proved difficult to match in our current pool.`;
+  } else if (seniority) {
+    specificReason = ` Finding ${seniority}-level candidates that meet our quality bar proved challenging.`;
+  }
+
+  return `We've thoroughly reviewed your ${role} search and our current candidate pool, but we're not confident we can deliver a shortlist that meets the quality bar we aim for.${specificReason}
+
+Rather than sending weak or misaligned profiles, we've decided to close this request with no charge.
+
+We appreciate your trust in Bixo. If your requirements change or you have another role to fill, we'd be happy to help.`;
+};
+
 export default function ShortlistDetailPage() {
   const params = useParams();
   const shortlistId = params.id as string;
@@ -168,6 +245,8 @@ export default function ShortlistDetailPage() {
   const [selectedOutcome, setSelectedOutcome] = useState<string>("");
   const [outcomeReason, setOutcomeReason] = useState<string>("");
   const [isSettingOutcome, setIsSettingOutcome] = useState(false);
+  // No-match options: 'adjust' | 'extend' | 'close'
+  const [noMatchOption, setNoMatchOption] = useState<'adjust' | 'extend' | 'close' | ''>('');
   // Email state (fetched separately)
   const [emailHistory, setEmailHistory] = useState<ShortlistEmailRecord[]>([]);
   const [isLoadingEmails, setIsLoadingEmails] = useState(false);
@@ -803,10 +882,12 @@ export default function ShortlistDetailPage() {
                   onClick={() => {
                     setShowOutcomeModal(true);
                     setSelectedOutcome("noMatch");
-                    setOutcomeReason("");
+                    // Default to Option A with pre-filled message using shortlist details
+                    setNoMatchOption('adjust');
+                    setOutcomeReason(generateAdjustMessage(shortlist));
                   }}
                 >
-                  Mark as No Match
+                  No Suitable Candidates
                 </Button>
               )}
               {canProposeScope() && !isScopeProposed() && (
@@ -1422,90 +1503,240 @@ export default function ShortlistDetailPage() {
         </div>
       )}
 
-      {/* Mark as No Match Modal */}
+      {/* No Suitable Candidates Modal */}
       {showOutcomeModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Mark as No Suitable Candidates
+          <div className="bg-white rounded-lg p-6 max-w-xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              No Suitable Candidates Found
             </h2>
             <p className="text-sm text-gray-600 mb-6">
-              This will close the shortlist without delivering any candidates.
-              The company will <strong>not be charged</strong>.
+              We couldn&apos;t find candidates that meet the seniority and quality bar.
+              Choose how to proceed:
             </p>
 
-            <div className="space-y-4">
-              {/* Reason textarea - required */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Explanation *{" "}
-                  <span className="text-red-600">(Required)</span>
-                </label>
-                <textarea
-                  value={outcomeReason}
-                  onChange={(e) => setOutcomeReason(e.target.value)}
-                  placeholder="Explain why no suitable candidates were found..."
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  This will be shown to the company
+            {/* Option Selection */}
+            <div className="space-y-3 mb-6">
+              {/* Option A: Adjust Brief */}
+              <button
+                onClick={() => {
+                  setNoMatchOption('adjust');
+                  setOutcomeReason(generateAdjustMessage(shortlist));
+                }}
+                className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${
+                  noMatchOption === 'adjust'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                    noMatchOption === 'adjust' ? 'border-blue-500' : 'border-gray-300'
+                  }`}>
+                    {noMatchOption === 'adjust' && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Suggest Adjusting the Brief</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Recommend relaxing constraints (broader tech stack, remote options, wider salary band)
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Option B: Extend Search */}
+              <button
+                onClick={() => {
+                  setNoMatchOption('extend');
+                  setOutcomeReason(generateExtendMessage(shortlist));
+                }}
+                className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${
+                  noMatchOption === 'extend'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                    noMatchOption === 'extend' ? 'border-blue-500' : 'border-gray-300'
+                  }`}>
+                    {noMatchOption === 'extend' && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Extend the Search Window</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Continue searching for another 7-14 days to see if suitable candidates emerge
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Option C: Close with No Charge */}
+              <button
+                onClick={() => {
+                  setNoMatchOption('close');
+                  setOutcomeReason(generateCloseMessage(shortlist));
+                }}
+                className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${
+                  noMatchOption === 'close'
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                    noMatchOption === 'close' ? 'border-red-500' : 'border-gray-300'
+                  }`}>
+                    {noMatchOption === 'close' && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Close with No Charge</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Close the request, release payment authorization, no candidates delivered
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Option-specific content */}
+            {noMatchOption === 'adjust' && (
+              <div className="space-y-4 mb-6 p-4 bg-blue-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Suggested Adjustments
+                  </label>
+                  <textarea
+                    value={outcomeReason}
+                    onChange={(e) => setOutcomeReason(e.target.value)}
+                    placeholder="e.g., If you're open to broadening the stack slightly (e.g. strong .NET with some React experience), we can continue the search..."
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-600">
+                  This message will be sent to the company. They can update their requirements or close the request.
                 </p>
               </div>
+            )}
 
-              {/* Warning */}
-              <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <svg
-                    className="w-6 h-6 text-amber-600 shrink-0 mt-0.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
-                  <div className="text-sm">
-                    <p className="font-semibold text-amber-900 mb-1">
-                      This will:
-                    </p>
-                    <ul className="list-disc list-inside text-amber-800 space-y-1">
-                      <li>Close the shortlist with no charge to company</li>
-                      <li>Permanently disable delivery for this shortlist</li>
-                      <li>Notify the company with your explanation</li>
-                      <li>Cannot be undone</li>
-                    </ul>
+            {noMatchOption === 'extend' && (
+              <div className="space-y-4 mb-6 p-4 bg-blue-50 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Message to Company
+                  </label>
+                  <textarea
+                    value={outcomeReason}
+                    onChange={(e) => setOutcomeReason(e.target.value)}
+                    placeholder="e.g., We haven't found the right match yet, but we'd like to continue searching for another 7-14 days..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-600">
+                  The search will continue. No guarantees, no pressure.
+                </p>
+              </div>
+            )}
+
+            {noMatchOption === 'close' && (
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Explanation to Company <span className="text-red-600">*</span>
+                  </label>
+                  <textarea
+                    value={outcomeReason}
+                    onChange={(e) => setOutcomeReason(e.target.value)}
+                    placeholder="e.g., We've reviewed the role and searched our current candidate pool, but we're not confident we can deliver a shortlist that meets the seniority and quality bar we aim for..."
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="w-5 h-5 text-amber-600 shrink-0 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                    <div className="text-sm">
+                      <p className="font-semibold text-amber-900 mb-1">This action will:</p>
+                      <ul className="list-disc list-inside text-amber-800 space-y-0.5">
+                        <li>Close the shortlist with no charge</li>
+                        <li>Release payment authorization</li>
+                        <li>Notify the company with your explanation</li>
+                        <li>Cannot be undone</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3">
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowOutcomeModal(false);
                   setSelectedOutcome("");
                   setOutcomeReason("");
+                  setNoMatchOption('');
                 }}
                 disabled={isSettingOutcome}
                 className="flex-1"
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleSetOutcome}
-                isLoading={isSettingOutcome}
-                disabled={!outcomeReason.trim()}
-                className="flex-1"
-              >
-                Confirm No Match
-              </Button>
+              {noMatchOption === 'adjust' && (
+                <Button
+                  onClick={() => {
+                    // TODO: Send suggestion to company
+                    alert('Send adjustment suggestion - backend integration pending');
+                  }}
+                  disabled={!outcomeReason.trim()}
+                  className="flex-1"
+                >
+                  Send Suggestion
+                </Button>
+              )}
+              {noMatchOption === 'extend' && (
+                <Button
+                  onClick={() => {
+                    // TODO: Mark as extended search
+                    alert('Extend search - backend integration pending');
+                  }}
+                  className="flex-1"
+                >
+                  Continue Searching
+                </Button>
+              )}
+              {noMatchOption === 'close' && (
+                <Button
+                  onClick={handleSetOutcome}
+                  isLoading={isSettingOutcome}
+                  disabled={!outcomeReason.trim()}
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                >
+                  Close with No Charge
+                </Button>
+              )}
             </div>
           </div>
         </div>
