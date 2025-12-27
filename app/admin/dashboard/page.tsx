@@ -202,123 +202,70 @@ export default function AdminDashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <Card>
-          <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 bg-blue-100 rounded-lg">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Candidates</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboard?.totalCandidates || 0}</p>
-              <p className="text-xs text-gray-500">{dashboard?.activeCandidates || 0} active</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 bg-green-100 rounded-lg">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Companies</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboard?.totalCompanies || 0}</p>
-              <p className="text-xs text-gray-500">{dashboard?.activeSubscriptions || 0} subscribed</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Shortlists</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboard?.pendingShortlists || 0}</p>
-              <p className="text-xs text-gray-500">pending review</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center">
-            <div className="flex-shrink-0 p-3 bg-yellow-100 rounded-lg">
-              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">${(dashboard?.totalRevenue || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-500">{dashboard?.completedShortlists || 0} shortlists</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <Link href="/admin/shortlists?status=pending">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Pending Shortlists</h3>
-                <p className="text-sm text-gray-500">Review and approve shortlist requests</p>
-              </div>
-              <Badge variant="warning">{dashboard?.pendingShortlists || 0}</Badge>
-            </div>
-          </Card>
-        </Link>
-
-        <Link href="/admin/recommendations">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Pending Recommendations</h3>
-                <p className="text-sm text-gray-500">Review candidate recommendations</p>
-              </div>
-              {(dashboard?.pendingRecommendations || 0) > 0 ? (
-                <Badge variant="primary">{dashboard?.pendingRecommendations || 0}</Badge>
-              ) : (
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              )}
-            </div>
-          </Card>
-        </Link>
-
         <Link href="/admin/candidates">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Manage Candidates</h3>
-                <p className="text-sm text-gray-500">View and moderate candidate profiles</p>
+            <div className="flex items-center">
+              <div className="flex-shrink-0 p-3 bg-blue-100 rounded-lg">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
               </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total Candidates</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboard?.totalCandidates || 0}</p>
+                <p className="text-xs text-gray-500">{dashboard?.activeCandidates || 0} active</p>
+              </div>
             </div>
           </Card>
         </Link>
 
         <Link href="/admin/companies">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">Manage Companies</h3>
-                <p className="text-sm text-gray-500">View company accounts and subscriptions</p>
+            <div className="flex items-center">
+              <div className="flex-shrink-0 p-3 bg-green-100 rounded-lg">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
               </div>
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total Companies</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboard?.totalCompanies || 0}</p>
+                <p className="text-xs text-gray-500">{dashboard?.activeSubscriptions || 0} subscribed</p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
+        <Link href="/admin/shortlists">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 p-3 bg-purple-100 rounded-lg">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Shortlists</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboard?.pendingShortlists || 0}</p>
+                <p className="text-xs text-gray-500">pending review</p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+
+        <Link href="/admin/shortlists?status=completed">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 p-3 bg-yellow-100 rounded-lg">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">${(dashboard?.totalRevenue || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-500">{dashboard?.completedShortlists || 0} shortlists</p>
+              </div>
             </div>
           </Card>
         </Link>
